@@ -4,7 +4,6 @@ import json
 from providers.base_provider import (
     BaseProvider,
     ProviderError,
-    validate_capabilities,
 )
 from providers.config import ProviderConfig, SupportedFeatures, FeatureStatus
 from utils import make_part
@@ -40,6 +39,11 @@ class DeepgramProvider(BaseProvider):
     async def connect(self) -> None:
         if self._is_connected:
             return
+
+        warnings = self.validate_provider_capabilities("Deepgram")
+        for warning in warnings:
+            await self.host_queue.put(warning)
+
         try:
             self.error = None
             headers = {"Authorization": f"token {self.config.service.api_key}"}
@@ -51,7 +55,7 @@ class DeepgramProvider(BaseProvider):
                 != FeatureStatus.unsupported()
             ):
                 raise ProviderError(
-                    f"Deepgram only supports language identification in batch, not streaming."
+                    "Deepgram only supports language identification in batch, not streaming."
                     "\n[Click here for more info](https://developers.deepgram.com/docs/language-detection)"
                 )
             self.validate_provider_capabilities("Deepgram")
@@ -155,6 +159,7 @@ class DeepgramProvider(BaseProvider):
                     if "words" in data_part:
                         words = data_part["words"]
                         parts = []
+                        speaker = None
                         for word in words:
                             if self.config.params.enable_speaker_diarization:
                                 speaker = word.get("speaker", "UNKNOWN")
@@ -234,9 +239,7 @@ class DeepgramProvider(BaseProvider):
             model="nova-3",
             single_multilingual_model=supported,
             language_hints=unsupported,
-            language_identification=FeatureStatus.unsupported(
-                comment="Not for streaming, only for prerecorded.",
-            ),  # https://developers.deepgram.com/docs/language-detection
+            language_identification=unsupported,  # https://developers.deepgram.com/docs/language-detection
             # https://developers.deepgram.com/docs/diarization
             speaker_diarization=supported,  # sometimes it just doesn't work
             customization=supported,  # available in form of Keyterm Prompting: https://developers.deepgram.com/docs/keyterm
@@ -247,9 +250,9 @@ class DeepgramProvider(BaseProvider):
             # Endpointing can affect the latency, but only when it actually detects
             # silence in audio stream. We set this to false.
             real_time_latency_config=unsupported,
-            endpoint_detection=FeatureStatus.supported(
+            endpoint_detection=FeatureStatus.partial(
                 comment="Endpoint detection based on pre-determined silence duration. "
-                "This does not take into account the context and crucially, it is not "
+                "This does not take into account the context. Therefore it is not "
                 "the model that decides whether the endpoint has been reached.",
             ),  # https://developers.deepgram.com/docs/endpointing #partial!!!!
             manual_finalization=supported,

@@ -36,12 +36,18 @@ def get_openai_service_config(params: ProviderParams):
     if params.mode == "mt":
         assert (
             params.translation is not None
-        ), "Translation requested, but target language not set."
-        target_translation_language = params.translation.target_language
-        prompt = (
-            f"Translate everything to language ISO 639 {target_translation_language}."
-            + f" Do not output {params.translation.source_languages[0]}. You need to translate."
-        )
+        ), "mt mode specified, but translation config is none."
+
+        if params.translation.type == "one_way":
+            assert (
+                params.translation is not None
+            ), "Translation requested, but target language not set."
+            target_translation_language = params.translation.target_language
+            prompt = (
+                f"Translate everything to language ISO 639 {target_translation_language}." # noqa
+                f" Do not output {params.translation.source_languages[0]}. "
+                "You need to translate."
+            )
 
     return ServiceConfig(
         provider_name="openai",
@@ -146,14 +152,18 @@ def get_provider_config(name: str, params: ProviderParams) -> ProviderConfig:
 
 
 def _load_language_mapping(mapping_file: str):
-    with open(mapping_file, 'r') as file:
+    with open(mapping_file, "r") as file:
         return json.load(file)
 
 
 file_dir = str(Path(__file__).resolve().parent)
 
-__GOOGLE_LANG_MAPPING = _load_language_mapping(f"{file_dir}/transcription_languages/google.json")
-__AZURE_LANG_MAPPING = _load_language_mapping(f"{file_dir}/transcription_languages/azure.json")
+__GOOGLE_LANG_MAPPING = _load_language_mapping(
+    f"{file_dir}/transcription_languages/google.json"
+)
+__AZURE_LANG_MAPPING = _load_language_mapping(
+    f"{file_dir}/transcription_languages/azure.json"
+)
 __SPEECHMATICS_LANG_MAPPING = _load_language_mapping(
     f"{file_dir}/transcription_languages/speechmatics.json"
 )
@@ -195,7 +205,7 @@ __GOOGLE_TRANSLATION_LANG_MAPPING = _load_language_mapping(
 )
 
 __SPEECHMATICS_TRANSLATION_LANG_MAPPING = _load_language_mapping(
-     f"{file_dir}/translation_languages/speechmatics.json"
+    f"{file_dir}/translation_languages/speechmatics.json"
 )
 
 

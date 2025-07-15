@@ -5,8 +5,10 @@ import { ChooseAudioFileDialog } from "./audio-picker";
 import { useState, useEffect, useCallback } from "react";
 import { Slider } from "@/components/ui/slider";
 import { AudioWaveButton } from "../audio-wave-button";
+import { useUrlSettings } from "@/hooks/use-url-settings";
 
 export const ActionPanel = () => {
+  const { isValid } = useUrlSettings();
   const {
     recordingState,
     startRecording,
@@ -38,6 +40,7 @@ export const ActionPanel = () => {
           variant={isRecording ? "destructive" : "default"}
           className={`flex-1 ${isRecording ? "" : "bg-soniox"}`}
           disabled={
+            !isValid ||
             isStarting ||
             isStopping ||
             (hasAudioFile && !audioReady && !isRecording)
@@ -97,6 +100,7 @@ const formatTime = (timeInSeconds: number): string => {
 };
 
 const AudioFileControls = () => {
+  const { isValid } = useUrlSettings();
   const {
     audioRef,
     recordingState,
@@ -218,6 +222,7 @@ const AudioFileControls = () => {
         size="icon"
         onClick={handleTogglePlayPause}
         disabled={
+          !isValid ||
           !audioReady ||
           recordingState === "starting" ||
           recordingState === "stopping" ||

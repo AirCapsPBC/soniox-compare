@@ -7,18 +7,17 @@ from providers.base_provider import (
     ProviderError,
 )
 
-from azure.cognitiveservices.speech.enums import PropertyId, ResultReason
+from azure.cognitiveservices.speech.enums import PropertyId
 from azure.cognitiveservices.speech.transcription import ConversationTranscriptionResult
 from azure.cognitiveservices.speech.translation import TranslationRecognitionResult
 from azure.cognitiveservices.speech.speech import RecognitionResult
 
 from providers.config import (
-    FeatureState,
     ProviderConfig,
     SupportedFeatures,
     FeatureStatus,
 )
-from utils import await_callback, make_part
+from utils import await_callback, make_part, info_message
 from typing import Any, Optional
 from config import get_language_mapping, get_translation_language_mapping
 
@@ -61,7 +60,8 @@ class AzureProvider(BaseProvider):
         self.client_queue: asyncio.Queue[bytes | str] = asyncio.Queue(maxsize=100)
         self.host_queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
         self._loop: asyncio.AbstractEventLoop | None = None
-        self._sender_task: asyncio.Task[Any] | None = None
+        self._sender_task: Optional[asyncio.Task] = None
+        self._receiver_task: Optional[asyncio.Task] = None
         audio_format = speechsdk.audio.AudioStreamFormat(
             samples_per_second=16000, bits_per_sample=16, channels=1
         )
@@ -138,6 +138,12 @@ class AzureProvider(BaseProvider):
         source_language = self.config.params.translation.source_languages[0]
         target_language = self.config.params.translation.target_language
         lang_mapping = get_translation_language_mapping("azure")
+
+        if source_language == "*":
+            raise ProviderError(
+                "Completely automatic language detection not supported by Azure."
+            )
+
         if source_language not in lang_mapping:
             raise ProviderError("Source language not supported by Azure.")
         source_language = lang_mapping[source_language]
@@ -150,14 +156,18 @@ class AzureProvider(BaseProvider):
     async def connect(self) -> None:
         if self._is_connected:
             return
-        self.validate_provider_capabilities(config=self.config)
+
+        warnings = self.validate_provider_capabilities("Azure")
+        for warning in warnings:
+            await self.host_queue.put(warning)
+
         try:
+            self._validate_provider_capabilities()
             # Clear errors when trying to start new connection.
             self.error = None
             speech_config = self._get_speech_config()
             audio_config = speechsdk.AudioConfig(stream=self.audio_stream)
             if self.config.params.mode == "stt":
-
                 auto_detect_lang_cfg = self._get_autodetect_lang_cfg()
 
                 self.recognizer = speechsdk.transcription.ConversationTranscriber(
@@ -174,9 +184,9 @@ class AzureProvider(BaseProvider):
                 self.recognizer.start_transcribing_async()
 
             elif self.config.params.mode == "mt":
-                assert (
-                    self.config.params.translation is not None
-                ), "Translation mode, but translation config is None."
+                assert self.config.params.translation is not None, (
+                    "Translation mode, but translation config is None."
+                )
 
                 translation_config = speechsdk.translation.SpeechTranslationConfig(
                     subscription=self.config.service.api_key,
@@ -184,7 +194,7 @@ class AzureProvider(BaseProvider):
                 )
                 if len(self.config.params.translation.source_languages) != 1:
                     raise ProviderError(
-                        "Azure only supports single " "source language for translation."
+                        "Azure only supports single source language for translation."
                     )
 
                 source, target = self._get_source_target_language()
@@ -281,28 +291,26 @@ class AzureProvider(BaseProvider):
     ) -> None:
         try:
             if self._loop:
-                assert (
-                    self.config.params.translation is not None
-                ), "Translation config is None, but received translation result."
-    
+                assert self.config.params.translation is not None, (
+                    "Translation config is None, but received translation result."
+                )
+
                 language = self.config.params.translation.target_language
                 start_ms, end_ms = _get_start_end_ms(result)
                 text = result.translations.get(language, "") + append_text
                 start_ms, end_ms = _get_start_end_ms(result)
-                
+
                 if text:
                     part = make_part(
                         text=text,
                         is_final=is_final,
                         start_ms=start_ms,
                         end_ms=end_ms,
-                        language=(
-                            language
-                        ),
+                        language=language,
                     )
-                    assert (
-                        self._loop is not None
-                    ), "Received translation result, but event loop not initialized."
+                    assert self._loop is not None, (
+                        "Received translation result, but event loop not initialized."
+                    )
                     asyncio.run_coroutine_threadsafe(
                         self._handle_result([part]), self._loop
                     )
@@ -384,20 +392,18 @@ class AzureProvider(BaseProvider):
                     language=language,
                 )
                 parts = [part1]
-                if self.config.params.enable_endpoint_detection == True:
+                if self.config.params.enable_endpoint_detection:
                     part2 = make_part(
-                        text = " <end>",
+                        text=" <end>",
                         confidence=confidence,
                         is_final=True,
                         start_ms=start_ms,
                         end_ms=end_ms,
                         speaker=speaker,
                         language=language,
-                        )
+                    )
                     parts.append(part2)
-                asyncio.run_coroutine_threadsafe(
-                    self._handle_result(parts), self._loop
-                )
+                asyncio.run_coroutine_threadsafe(self._handle_result(parts), self._loop)
 
             except Exception as ex:
                 self.error = ex
@@ -415,7 +421,7 @@ class AzureProvider(BaseProvider):
             {
                 "type": "data",
                 "provider": self.config.service.provider_name,
-                "parts": parts,               
+                "parts": parts,
             }
         )
 
@@ -429,37 +435,16 @@ class AzureProvider(BaseProvider):
         )
         await self.disconnect()
 
-    def validate_provider_capabilities(self, config: Any) -> None:
-        # This calls the shared helper from BaseProvider
-        self._validate_capabilities_helper(config=config, provider="Azure")
+    def _validate_provider_capabilities(self) -> None:
+        params = self.config.params
 
-    def _validate_capabilities_helper(self, config: Any, provider: str) -> None:
-
-        features = self.get_available_features()
-        if (
-            config.params.mode == "mt"
-            and features.translation_one_way.state == FeatureState.UNSUPPORTED
-        ):
-            raise ProviderError(f"Machine translation is not supported by {provider}.")
-
-        # Allow speaker diarization only in stt mode
-        if config.params.enable_speaker_diarization and config.params.mode != "stt":
+        if params.enable_speaker_diarization and params.mode != "stt":
             raise ProviderError(
                 "Azure only supports speaker diarization in 'stt' mode."
                 "\n[Click here to read more.](https://learn.microsoft.com/en-us/azure/ai-services/speech-service/get-started-stt-diarization?tabs=linux&pivots=programming-language-python)"
             )
 
-        if (
-            config.params.enable_language_identification
-            and features.language_identification.state == FeatureState.UNSUPPORTED
-        ):
-            raise ProviderError(f"Language identification not supported by {provider}.")
-
-        if (
-            config.params.enable_endpoint_detection
-            and features.endpoint_detection.state == FeatureState.UNSUPPORTED
-        ):
-            raise ProviderError(f"Endpoint detection not supported by {provider}.")
+        super().validate_provider_capabilities("Azure")
 
     def is_language_pair_supported(
         self, source_langs: Optional[list[str]], target_lang: str
@@ -481,7 +466,9 @@ class AzureProvider(BaseProvider):
             model="en-US-Conversation",
             single_multilingual_model=unsupported,  # TODO: Check if this is correct
             language_hints=unsupported,  # TODO: Check if this is correct
-            language_identification=partial,  # https://learn.microsoft.com/en-us/azure/ai-services/speech-service/language-identification?tabs=once&pivots=programming-language-csharp # noqa
+            language_identification=FeatureStatus.partial(
+                comment="Azure's language detection is limited to detecting one out of a maximum of 10 inputted languages. Soniox can detect any language that is currently supported. [Click here for more info.](https://learn.microsoft.com/en-us/azure/ai-services/speech-service/language-identification?tabs=once&pivots=programming-language-python)"
+            ),  # https://learn.microsoft.com/en-us/azure/ai-services/speech-service/language-identification?tabs=once&pivots=programming-language-csharp # noqa
             speaker_diarization=partial,  # NOTE: Only for transcription, not translation https://learn.microsoft.com/en-us/azure/ai-services/speech-service/get-started-stt-diarization?tabs=linux&pivots=programming-language-csharp # noqa
             customization=supported,  # https://learn.microsoft.com/en-us/azure/ai-services/speech-service/improve-accuracy-phrase-list?tabs=terminal&pivots=programming-language-csharp # noqa
             timestamps=supported,  # ADDED https://learn.microsoft.com/en-us/azure/ai-services/speech-service/get-speech-recognition-results?pivots=programming-language-csharp # noqa
@@ -490,9 +477,23 @@ class AzureProvider(BaseProvider):
             translation_two_way=unsupported,
             real_time_latency_config=supported,  # Speech_SegmentationSilenceTimeoutMs and SpeechServiceConnection_InitialSilenceTimeoutMs, https://learn.microsoft.com/en-us/dotnet/api/microsoft.cognitiveservices.speech.propertyid?view=azure-dotnet # noqa
             # https://learn.microsoft.com/en-us/azure/ai-services/speech-service/how-to-recognize-speech?pivots=programming-language-csharp # noqa
-            endpoint_detection=FeatureStatus.supported(
-                comment="Either based on timeouts or based on semantic "
-                "segmentation - look for Semantic segmentation.",
-            ),
+            endpoint_detection=supported,
             manual_finalization=unsupported,
         )
+
+    def validate_provider_capabilities(self, name: str) -> list[dict[str, Any]]:
+        params = self.config.params
+
+        azure_warnings: list[dict[str, Any]] = []
+        if params.enable_speaker_diarization and params.mode == "mt":
+            azure_warnings.append(
+                info_message(
+                    name,
+                    "Azure only supports speaker diarization in 'stt' mode. Diarization has been disabled for this translation session.",
+                    level="warning",
+                )
+            )
+            params.enable_speaker_diarization = False
+
+        base_warnings = super().validate_provider_capabilities(name)
+        return azure_warnings + base_warnings

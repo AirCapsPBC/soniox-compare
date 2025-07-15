@@ -1,10 +1,25 @@
-# Soniox Comparison Tool
+# Soniox Compare
+
+Welcome to Soniox Compare, a comprehensive platform for evaluating real-time speech-to-text (STT) and machine translation services. This project highlights the performance of Soniox by enabling side-by-side comparisons with other providers. We provide full source code for transparency, allowing users to independently test and verify the results. The tool features a robust backend and an intuitive frontend, designed to display and compare outputs from multiple selected providers simultaneously.
+
+You can try it out at https://soniox.com/compare/
+
+You can compare the outputs of the following providers:
+- [Soniox](https://soniox.com/)
+- [Google](https://cloud.google.com/speech-to-text)
+- [Azure](https://learn.microsoft.com/en-us/azure/ai-services/speech-service/overview)
+- [OpenAI](https://platform.openai.com/docs/api-reference/realtime-sessions/create-transcription)
+- [Deepgram](https://www.deepgram.com/)
+- [Speechmatics](https://www.speechmatics.com/)
+- [AssemblyAI](https://www.assemblyai.com/)
 
 ## Running the Project
 
 **Backend (FastAPI - Project Root):**
 
 ```bash
+# Install dependencies:
+uv sync
 # Run the backend server:
 uv run fastapi dev
 # Backend runs on: http://127.0.0.1:8000
@@ -13,8 +28,11 @@ uv run fastapi dev
 **Frontend (React/Vite - `frontend/` directory):**
 
 ```bash
-cd frontend
 # Ensure Node.js and yarn are installed
+cd frontend
+# Install dependencies:
+yarn install
+# Run the frontend server:
 yarn dev
 # Frontend runs on: http://localhost:5173/compare/ui/ (proxies to backend)
 ```

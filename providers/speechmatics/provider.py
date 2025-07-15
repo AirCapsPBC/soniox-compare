@@ -27,7 +27,16 @@ class SpeechmaticsProvider(BaseProvider):
     async def connect(self) -> None:
         if self._is_connected:
             return
-        self.validate_provider_capabilities("Speechmatics")
+
+        warnings = self.validate_provider_capabilities("Speechmatics")
+        for warning in warnings:
+            await self.host_queue.put(warning)
+
+        if self.config.params.enable_language_identification:
+            raise ProviderError(
+                "Speechmatics only supports language identification in batch, not streaming."
+                "\n[Click here for more info](https://docs.speechmatics.com/features-other/lang-id)"
+            )
         if self.config.params.mode == "mt":
             translation = self.config.params.translation
             self._session_target_language = translation.target_language.replace(
@@ -320,6 +329,6 @@ class SpeechmaticsProvider(BaseProvider):
             translation_one_way=supported,  # https://docs.speechmatics.com/features-other/translation
             translation_two_way=unsupported,
             real_time_latency_config=supported,  # https://docs.speechmatics.com/features/realtime-latency
-            endpoint_detection=FeatureStatus.partial(),  # True previously, but could not find this feature.
+            endpoint_detection=unsupported,  # True previously, but could not find this feature.
             manual_finalization=unsupported,
         )

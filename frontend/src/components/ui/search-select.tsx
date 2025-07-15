@@ -18,6 +18,14 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "./dialog";
+import { useIsMobile } from "@/hooks/use-is-mobile";
 
 export interface SearchSelectOption {
   value: string;
@@ -33,6 +41,7 @@ interface SearchSelectProps {
   notFoundMessage?: string;
   disabled?: boolean;
   className?: string;
+  highlightedValues?: string[];
 }
 
 export const SearchSelect: React.FC<SearchSelectProps> = ({
@@ -44,8 +53,10 @@ export const SearchSelect: React.FC<SearchSelectProps> = ({
   notFoundMessage = "No results found.",
   disabled = false,
   className,
+  highlightedValues = [],
 }) => {
   const [open, setOpen] = React.useState(false);
+  const isMobile = useIsMobile();
 
   const selectedOption = options.find((option) => option.value === value);
 
@@ -58,20 +69,103 @@ export const SearchSelect: React.FC<SearchSelectProps> = ({
     return 0; // No match
   };
 
+  const highlightedOptions = options
+    .filter(
+      (option) =>
+        highlightedValues.includes(option.value) && option.value !== value
+    )
+    .sort((a, b) => a.label.localeCompare(b.label));
+
+  const otherOptions = options
+    .filter(
+      (option) =>
+        !highlightedValues.includes(option.value) && option.value !== value
+    )
+    .sort((a, b) => a.label.localeCompare(b.label));
+
+  const renderOption = (option: SearchSelectOption) => (
+    <CommandItem
+      key={option.value}
+      value={option.value}
+      onSelect={(currentValue) => {
+        onValueChange(currentValue === value ? "" : currentValue);
+        setOpen(false);
+      }}
+      className={cn(
+        value === option.value && "font-semibold",
+        highlightedValues.includes(option.value) &&
+          "font-medium text-soniox data-[selected=true]:text-soniox/80"
+      )}
+    >
+      {stripOutLeadingUnderscore(option.label)}
+      <Check
+        className={cn(
+          "ml-2 h-4 w-4 stroke-3 text-black",
+          value === option.value ? "opacity-100" : "opacity-0",
+          highlightedValues.includes(option.value) && "text-soniox"
+        )}
+      />
+    </CommandItem>
+  );
+
+  const commandContent = (
+    <>
+      {selectedOption && (
+        <CommandGroup>{renderOption(selectedOption)}</CommandGroup>
+      )}
+      {highlightedOptions.length > 0 && (
+        <CommandGroup heading="Suggested">
+          {highlightedOptions.map(renderOption)}
+        </CommandGroup>
+      )}
+      {otherOptions.length > 0 && (
+        <CommandGroup
+          heading={highlightedOptions.length > 0 ? "Others" : undefined}
+        >
+          {otherOptions.map(renderOption)}
+        </CommandGroup>
+      )}
+    </>
+  );
+
+  const triggerButton = (
+    <Button
+      variant="outline"
+      role="combobox"
+      aria-expanded={open}
+      className={cn("w-full justify-between", className)}
+      disabled={disabled}
+    >
+      {selectedOption
+        ? stripOutLeadingUnderscore(selectedOption.label)
+        : placeholder}
+      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+    </Button>
+  );
+
+  if (isMobile) {
+    return (
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTrigger asChild>{triggerButton}</DialogTrigger>
+        <DialogContent className="p-0 h-dvh w-dvh max-w-full flex flex-col sm:h-auto sm:w-auto sm:max-w-[calc(100%-2rem)]">
+          <DialogHeader className="p-4 pb-0">
+            <DialogTitle>{placeholder}</DialogTitle>
+          </DialogHeader>
+          <Command filter={filterFunction} className="p-2">
+            <CommandInput placeholder={searchPlaceholder} />
+            <CommandList>
+              <CommandEmpty>{notFoundMessage}</CommandEmpty>
+              {commandContent}
+            </CommandList>
+          </Command>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          className={cn("w-full justify-between", className)}
-          disabled={disabled}
-        >
-          {selectedOption ? selectedOption.label : placeholder}
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
+      <PopoverTrigger asChild>{triggerButton}</PopoverTrigger>
       <PopoverContent
         className="w-[var(--radix-popover-trigger-width)] p-0"
         align="start"
@@ -80,31 +174,16 @@ export const SearchSelect: React.FC<SearchSelectProps> = ({
       >
         <Command filter={filterFunction}>
           <CommandInput placeholder={searchPlaceholder} />
-          <CommandList>
+          <CommandList className="max-h-[200px] sm:max-h-auto">
             <CommandEmpty>{notFoundMessage}</CommandEmpty>
-            <CommandGroup>
-              {options.map((option) => (
-                <CommandItem
-                  key={option.value}
-                  value={option.value}
-                  onSelect={(currentValue) => {
-                    onValueChange(currentValue === value ? "" : currentValue);
-                    setOpen(false);
-                  }}
-                >
-                  <Check
-                    className={cn(
-                      "mr-2 h-4 w-4",
-                      value === option.value ? "opacity-100" : "opacity-0"
-                    )}
-                  />
-                  {option.label}
-                </CommandItem>
-              ))}
-            </CommandGroup>
+            {commandContent}
           </CommandList>
         </Command>
       </PopoverContent>
     </Popover>
   );
+};
+
+const stripOutLeadingUnderscore = (str: string) => {
+  return str.replace(/^_/, "");
 };

@@ -1,5 +1,3 @@
-import React from "react";
-
 import {
   AlertCircle,
   CheckCircle2,
@@ -9,17 +7,13 @@ import {
   type LucideIcon,
   HelpCircle,
 } from "lucide-react";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { SONIOX_PROVIDER, type ProviderName } from "@/lib/provider-features";
-import type { FeatureInfo, ProviderFeatures } from "@/app";
 import { cn, snakeCaseToTitle } from "@/lib/utils";
-
-const IGNORED_FEATURES = ["confidence_scores", "timestamps"];
+import { useFeatures } from "@/contexts/feature-context";
+import { SONIOX_PROVIDER } from "@/lib/provider-features";
+import { useMemo } from "react";
+import MarkdownRenderer from "./markdown-renderer";
+import { ResponsiveTooltip } from "./ui/responsive-tooltip";
+import { TooltipProvider } from "@radix-ui/react-tooltip";
 
 const FEATURE_DOCS_MAP: Record<string, string> = {
   single_multilingual_model:
@@ -47,59 +41,70 @@ const FEATURE_DOCS_MAP: Record<string, string> = {
     "https://soniox.com/docs/speech-to-text/core-concepts/manual-finalization",
 };
 
-interface FeatureComparisonTableProps {
-  providerFeatures: ProviderFeatures;
-}
+export const FeatureComparisonTable = () => {
+  const { providerFeatures, availableComparisonProviders, getFeatureSet } =
+    useFeatures();
 
-export const FeatureComparisonTable: React.FC<FeatureComparisonTableProps> = ({
-  providerFeatures,
-}) => {
-  if (!providerFeatures || Object.keys(providerFeatures).length === 0) {
+  const allProviderNames = useMemo(() => {
+    return [SONIOX_PROVIDER, ...availableComparisonProviders];
+  }, [availableComparisonProviders]);
+
+  // helper if we need to download the data for the table
+  // const handleDownload = () => {
+  //   if (!providerFeatures) return;
+
+  //   const dataToDownload = {
+  //     features: getFeatureSet(),
+  //     providers: allProviderNames,
+  //     providerDetails: allProviderNames.reduce(
+  //       (acc, providerName: ProviderName) => {
+  //         acc[providerName] = providerFeatures[providerName];
+  //         return acc;
+  //       },
+  //       {} as ProviderFeatures
+  //     ),
+  //   };
+
+  //   const dataStr = JSON.stringify(dataToDownload, null, 2);
+  //   const blob = new Blob([dataStr], { type: "application/json" });
+  //   const dataUrl = URL.createObjectURL(blob);
+  //   console.log("Download Feature Comparison Data URL:", dataUrl);
+
+  //   const a = document.createElement("a");
+  //   a.href = dataUrl;
+  //   a.download = "feature-comparison-data.json";
+  //   document.body.appendChild(a);
+  //   a.click();
+  //   document.body.removeChild(a);
+  //   URL.revokeObjectURL(dataUrl);
+  // };
+
+  if (!providerFeatures) {
     return <p>No provider features available to compare.</p>;
   }
 
-  // Determine the order of providers, perhaps placing SONIOX_PROVIDER first
-  const allProviderNames = Object.keys(providerFeatures) as ProviderName[];
-  const orderedProviderNames = [
-    SONIOX_PROVIDER,
-    ...allProviderNames.filter((p) => p !== SONIOX_PROVIDER),
-  ];
-
-  // Use Soniox features as the baseline for rows, or a union of all features if necessary
-  const allSonioxFeatures = providerFeatures[SONIOX_PROVIDER] || {};
-  const filteredSonioxFeatures = Object.fromEntries(
-    Object.entries(allSonioxFeatures).filter(
-      ([key]) => !IGNORED_FEATURES.includes(key)
-    )
-  );
-  if (!filteredSonioxFeatures) {
-    return <p>Soniox provider features are not available.</p>;
-  }
-
-  const featureSet = Object.keys(filteredSonioxFeatures).filter(
-    (key) => key !== "name" && key !== "model"
-  );
-
-  if (featureSet.length === 0) {
-    return <p>No features available to compare.</p>;
-  }
-
   return (
-    <div className="overflow-x-auto w-full">
-      <table className="w-full text-sm border-collapse min-w-[600px]">
+    <div className="inset-0 absolute overflow-x-auto">
+      {/* <div className="flex justify-end p-2 bg-gray-100 dark:bg-gray-800">
+        <Button onClick={handleDownload} variant="outline" size="sm">
+          <Download className="mr-2 h-4 w-4" />
+          Download JSON
+        </Button>
+      </div> */}
+      <table className="text-xs sm:text-sm border-collapse min-w-full">
         <thead>
           <tr className="border-b bg-gray-100 dark:bg-gray-800">
-            <th className="p-3 text-left font-semibold text-gray-700 dark:text-gray-300 sticky left-0 bg-gray-100 dark:bg-gray-800 z-10 w-[200px] min-w-[200px]">
+            <th className="p-2 sm:p-3 sm:pl-14 lg:pl-3 text-left font-semibold text-gray-700 dark:text-gray-300 sticky left-0 bg-gray-100 dark:bg-gray-800 z-10 w-[100px] min-w-[100px] md:w-[200px] md:min-w-[200px]">
               Feature
             </th>
-            {orderedProviderNames.map((providerName) => (
+            {allProviderNames.map((providerName) => (
               <th
                 key={providerName}
-                className="py-3 px-0.5 align-top text-center font-semibold text-gray-700 dark:text-gray-300 capitalize max-w-[100px]"
+                className="py-2 pt-5 sm:py-3 px-0.5 align-top text-center font-semibold text-gray-700 dark:text-gray-300 capitalize w-[80px] min-w-[80px] md:w-[120px] md:min-w-[120px]"
               >
                 {providerFeatures[providerName]?.name ||
                   snakeCaseToTitle(providerName)}
-                <div className="text-[10px] text-gray-400 lowercase">
+                <div className="text-[9px] sm:text-[10px] text-gray-400 lowercase">
                   {providerFeatures[providerName]?.model}
                 </div>
               </th>
@@ -107,12 +112,12 @@ export const FeatureComparisonTable: React.FC<FeatureComparisonTableProps> = ({
           </tr>
         </thead>
         <tbody>
-          {featureSet.map((featureKey) => (
+          {getFeatureSet().map((featureKey) => (
             <tr
               key={featureKey}
               className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50"
             >
-              <td className="p-3 text-gray-700 dark:text-gray-300 whitespace-nowrap sticky left-0 bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/50 z-10 w-[200px] min-w-[200px]">
+              <td className="p-2 sm:p-3 text-gray-700 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/50 z-10 w-[100px] min-w-[100px] md:w-[200px] md:min-w-[200px]">
                 <div className="flex items-center">
                   <a
                     href={
@@ -120,17 +125,22 @@ export const FeatureComparisonTable: React.FC<FeatureComparisonTableProps> = ({
                     }
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="gap-x-2 flex items-center text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                    className="gap-x-1 sm:gap-x-2 flex items-center text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
                   >
                     {FEATURE_DOCS_MAP[featureKey] && (
-                      <ExternalLink className="w-3 h-3" />
+                      <ExternalLink className="w-3 h-3 shrink-0 mr-2" />
                     )}
-                    <span>{snakeCaseToTitle(featureKey)}</span>
+                    <span className="text-[10px] sm:text-sm">
+                      {snakeCaseToTitle(featureKey)}
+                    </span>
                   </a>
                 </div>
               </td>
-              {orderedProviderNames.map((providerName) => (
-                <td key={providerName} className="py-3 text-center">
+              {allProviderNames.map((providerName) => (
+                <td
+                  key={providerName}
+                  className="py-2 sm:py-3 text-center w-[80px] min-w-[80px] md:w-[120px] md:min-w-[120px]"
+                >
                   {renderFeatureSupport(
                     providerFeatures[providerName]?.[featureKey]
                   )}
@@ -185,63 +195,22 @@ const renderFeatureSupport = (
   if (commentForTooltip) {
     return (
       <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span className={cn("relative", colorClass)}>
-              <IconElement className="inline-block h-5 w-5" />
-              <Asterisk className="absolute -top-2 -right-2 h-3 w-3 rounded-full z-10" />
-            </span>
-          </TooltipTrigger>
-          <TooltipContent className="max-w-72 text-xs">
-            <p>{commentForTooltip}</p>
-          </TooltipContent>
-        </Tooltip>
+        <ResponsiveTooltip
+          contentClassName="text-xs max-w-72"
+          content={<MarkdownRenderer>{commentForTooltip}</MarkdownRenderer>}
+        >
+          <span className={cn("relative", colorClass)}>
+            <IconElement className="inline-block h-4 w-4 sm:h-5 sm:w-5" />
+            <Asterisk className="absolute -top-1 -right-1 h-2 w-2 rounded-full sm:-top-2 sm:-right-2 sm:h-3 sm:w-3" />
+          </span>
+        </ResponsiveTooltip>
       </TooltipProvider>
     );
   }
 
-  return <IconElement className={cn("inline-block h-5 w-5", colorClass)} />;
-};
-
-export const getProviderFeaturesTextTable = ({
-  providerName,
-  providerFeatures,
-}: {
-  providerName: ProviderName;
-  providerFeatures: ProviderFeatures;
-}) => {
-  const filteredProviderFeatures = Object.fromEntries(
-    Object.entries(providerFeatures?.[providerName] || {}).filter(
-      ([key]) => !IGNORED_FEATURES.includes(key)
-    )
+  return (
+    <IconElement
+      className={cn("inline-block h-4 w-4 sm:h-5 sm:w-5", colorClass)}
+    />
   );
-
-  const getStateIcon = (state: FeatureInfo["state"]) => {
-    switch (state) {
-      case "SUPPORTED":
-        return "✅";
-      case "UNSUPPORTED":
-        return "❌";
-      case "PARTIAL":
-        return "⚠️";
-    }
-  };
-
-  return Object.entries(filteredProviderFeatures)
-    .filter(([, value]) => {
-      if (typeof value === "string") {
-        return false;
-      }
-      return true;
-    })
-    .map(([key, value]) => {
-      if (typeof value === "boolean") {
-        return `${value ? "✅" : "❌"} ${key}:`;
-      }
-      if (typeof value === "string") {
-        return null;
-      }
-      return `${getStateIcon(value.state)} ${snakeCaseToTitle(key)}`;
-    })
-    .join("\n");
 };

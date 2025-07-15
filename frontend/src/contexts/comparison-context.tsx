@@ -6,10 +6,12 @@ import React, {
   useCallback,
   useEffect,
 } from "react";
-// FIX: Changed alias paths to relative paths to resolve build errors.
-import { type ProviderName, SONIOX_PROVIDER } from "../lib/provider-features";
+import {
+  ALL_PROVIDERS_LIST,
+  type ProviderName,
+  SONIOX_PROVIDER,
+} from "../lib/provider-features";
 import { MockWebSocket } from "../lib/mock-websocket";
-import type { ProviderFeatures } from "../app";
 import { useUrlSettings } from "../hooks/use-url-settings";
 
 const USE_MOCK_DATA = false;
@@ -23,11 +25,17 @@ export interface TranscriptPart {
   confidence?: number | null;
 }
 
+export interface InfoMessage {
+  message: string;
+  level: "info" | "warning" | "error";
+}
+
 export interface OutputData {
   statusMessage: string;
   finalParts: TranscriptPart[];
   nonFinalParts: TranscriptPart[];
   error: string;
+  infoMessages: InfoMessage[];
 }
 
 export type ProviderOutputs = Record<ProviderName, OutputData>;
@@ -45,7 +53,6 @@ export interface RawMessage {
 }
 
 interface ComparisonContextState {
-  providerFeatures: ProviderFeatures;
   recordingState: AudioRecordingState;
   providerOutputs: ProviderOutputs;
   appError: string | null;
@@ -86,6 +93,7 @@ const initializeProviderOutputs = (
     finalParts: [],
     nonFinalParts: [],
     error: "",
+    infoMessages: [],
   };
   return providers.reduce((acc, provider) => {
     acc[provider] = { ...initialOutput };
@@ -110,11 +118,12 @@ function floatTo16BitPCM(float32Array: Float32Array): Int16Array {
   return int16Array;
 }
 
-export const ComparisonProvider: React.FC<{
+export const ComparisonProvider = ({
+  children,
+}: {
   children: React.ReactNode;
-  providers: ProviderName[];
-  providerFeatures: ProviderFeatures;
-}> = ({ children, providers, providerFeatures }) => {
+}) => {
+  const providers = [...ALL_PROVIDERS_LIST];
   const [recordingState, setRecordingState] =
     useState<AudioRecordingState>("idle");
   const [providerOutputs, setProviderOutputs] = useState<ProviderOutputs>(() =>
@@ -154,6 +163,7 @@ export const ComparisonProvider: React.FC<{
             finalParts: [],
             nonFinalParts: [],
             error: "",
+            infoMessages: [],
           };
         });
         return newState;
@@ -170,6 +180,7 @@ export const ComparisonProvider: React.FC<{
           nonFinalParts: [],
           error: "",
           statusMessage: "",
+          infoMessages: [],
         };
         return acc;
       }, {} as ProviderOutputs)
@@ -234,6 +245,14 @@ export const ComparisonProvider: React.FC<{
       wsRef.current = null;
     }
 
+    // Clear out the statusMessages from the providerOutputs (so we dont show "Recording..." when we stop)
+    setProviderOutputs((prev) => {
+      const newState = { ...prev };
+      Object.keys(newState).forEach((provider) => {
+        newState[provider as ProviderName].statusMessage = "";
+      });
+      return newState;
+    });
     activeProvidersRef.current = [];
     setRecordingState("idle");
   }, []);
@@ -341,6 +360,7 @@ export const ComparisonProvider: React.FC<{
           finalParts: [],
           nonFinalParts: [],
           error: "",
+          infoMessages: [],
         };
       });
       return newState;
@@ -362,6 +382,11 @@ export const ComparisonProvider: React.FC<{
           fileSourceNodeRef.current.connect(analyserRef.current);
         }
       } else {
+        if (!navigator.mediaDevices?.getUserMedia) {
+          throw new Error(
+            "The MediaDevices API is not available in this browser. Please ensure you are running in a secure context (HTTPS)."
+          );
+        }
         const stream = await navigator.mediaDevices.getUserMedia({
           audio: {
             autoGainControl: false,
@@ -481,7 +506,16 @@ export const ComparisonProvider: React.FC<{
             ? { ...prev[provider] }
             : initializeProviderOutputs([provider])[provider];
 
-          if (result.error_message) {
+          if (result.type === "info") {
+            const newMessage: InfoMessage = {
+              message: result.message,
+              level: result.level,
+            };
+            currentProviderOutput.infoMessages = [
+              ...(currentProviderOutput.infoMessages || []),
+              newMessage,
+            ];
+          } else if (result.error_message) {
             currentProviderOutput.error = result.error_message;
             currentProviderOutput.statusMessage = "";
             currentProviderOutput.finalParts = [];
@@ -564,7 +598,6 @@ export const ComparisonProvider: React.FC<{
   }, [stopRecordingInternal]);
 
   const contextValue: ComparisonContextType = {
-    providerFeatures,
     recordingState,
     providerOutputs,
     appError,

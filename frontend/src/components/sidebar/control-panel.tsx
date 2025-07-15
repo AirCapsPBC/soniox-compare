@@ -1,37 +1,25 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { Info } from "lucide-react";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { Info, Languages, NotebookPen } from "lucide-react";
 import { useUrlSettings } from "@/hooks/use-url-settings";
 import { useComparison } from "@/contexts/comparison-context";
-import {
-  ALL_PROVIDERS_LIST,
-  SONIOX_PROVIDER,
-  type ProviderName,
-} from "@/lib/provider-features";
-import { OPERATION_MODES } from "@/lib/comparison-constants";
 import { ActionPanel } from "./action-panel";
 import { TranslationSettings } from "./translation-settings";
 import { useModelData } from "@/contexts/model-data-context";
 import { SearchSelect } from "@/components/ui/search-select";
 import { FaDiscord, FaGithub } from "react-icons/fa";
+import { useFeatures } from "@/contexts/feature-context";
+import type { ProviderName } from "@/lib/provider-features";
+import { ResponsiveTooltip } from "../ui/responsive-tooltip";
+import { ToggleGroup, ToggleGroupItem } from "../ui/toggle-group";
+import { FeatureComparisonDialog } from "../feature-comparison-dialog";
 
 export const ControlPanel: React.FC = () => {
-  const { providerFeatures, recordingState } = useComparison();
+  const { recordingState } = useComparison();
+  const { providerFeatures, availableComparisonProviders } = useFeatures();
 
   const { modelInfo } = useModelData();
 
@@ -57,10 +45,6 @@ export const ControlPanel: React.FC = () => {
 
   const isRecording = recordingState === "recording";
   const isStarting = recordingState === "starting";
-
-  const availableComparisonProviders = providerFeatures
-    ? ALL_PROVIDERS_LIST.filter((p) => p !== SONIOX_PROVIDER)
-    : [];
 
   const handleProviderSelectionChange = (
     provider: ProviderName,
@@ -95,45 +79,35 @@ export const ControlPanel: React.FC = () => {
           <TooltipProvider>
             <div className="flex -mr-4 text-gray-400 items-center gap-x-1">
               {/* A github button */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <a
-                    href="https://discord.com/invite/rWfnk9uM5j"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <Button variant="ghost" size="icon" className="">
-                      <FaDiscord className="size-5" />
-                    </Button>
-                  </a>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Join Discord</p>
-                </TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <a
-                    href="https://github.com/soniox/soniox-compare"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <Button variant="ghost" size="icon">
-                      <FaGithub className="size-5" />
-                    </Button>
-                  </a>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>View on GitHub</p>
-                </TooltipContent>
-              </Tooltip>
+              <ResponsiveTooltip content={<p>Join Discord</p>}>
+                <a
+                  href="https://discord.com/invite/rWfnk9uM5j"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Button variant="ghost" size="icon" className="">
+                    <FaDiscord className="size-5" />
+                  </Button>
+                </a>
+              </ResponsiveTooltip>
+              <ResponsiveTooltip content={<p>View on GitHub</p>}>
+                <a
+                  href="https://github.com/soniox/soniox-compare"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Button variant="ghost" size="icon">
+                    <FaGithub className="size-5" />
+                  </Button>
+                </a>
+              </ResponsiveTooltip>
             </div>
           </TooltipProvider>
         </div>
-        <div className="absolute inset-0 overflow-y-auto flex flex-col space-y-6 p-4 pt-12">
+        <div className="absolute inset-0 overflow-y-auto flex flex-col space-y-4 p-4 pt-12 pb-0">
           <div className="w-full space-y-4 pt-6">
-            <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-2">
-              Providers
+            <Label className="text-sm font-semibold text-gray-700 dark:text-gray-300 block mb-2">
+              1. Select speech providers
             </Label>
             <div className="space-y-2 max-h-60 overflow-y-auto p-2 border rounded-md dark:border-gray-700 bg-white dark:bg-zinc-800">
               {availableComparisonProviders.map((provider) => (
@@ -149,10 +123,10 @@ export const ControlPanel: React.FC = () => {
                   />
                   <Label
                     htmlFor={`provider-checkbox-${provider}`}
-                    className="text-sm font-normal capitalize cursor-pointer"
+                    className="text-sm font-normal capitalize cursor-pointer truncate"
                   >
                     {providerFeatures?.[provider]?.name ?? provider}
-                    <span className="text-xs text-gray-400 dark:text-gray-500 lowercase">
+                    <span className="text-xs text-gray-400 dark:text-gray-500 lowercase truncate">
                       {providerFeatures?.[provider]?.model}
                     </span>
                   </Label>
@@ -176,57 +150,60 @@ export const ControlPanel: React.FC = () => {
             <div>
               <Label
                 htmlFor="op-mode"
-                className="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-1"
+                className="text-sm font-semibold text-gray-700 dark:text-gray-300 block mb-1"
               >
-                Operation mode
+                2. Select mode
               </Label>
-              <Select
+              <ToggleGroup
+                id="op-mode"
+                type="single"
                 value={mode}
-                onValueChange={(v) => setMode(v as "stt" | "mt")}
+                onValueChange={(v) => {
+                  if (v) setMode(v as "stt" | "mt");
+                }}
+                className="w-full grid grid-cols-2 border border-input rounded-md"
                 disabled={isRecording}
               >
-                <SelectTrigger
-                  id="op-mode"
-                  className="w-full text-sm bg-white dark:bg-zinc-800"
+                <ToggleGroupItem
+                  value="stt"
+                  aria-label="Speech-to-text"
+                  className="data-[state=on]:text-soniox text-gray-700 dark:text-gray-300 hover:bg-soniox/10 dark:hover:bg-soniox/20"
                 >
-                  <SelectValue placeholder="Select mode" />
-                </SelectTrigger>
-                <SelectContent>
-                  {OPERATION_MODES.map((opMode) => (
-                    <SelectItem
-                      key={opMode.value}
-                      value={opMode.value}
-                      className="text-sm"
-                    >
-                      {opMode.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                  <NotebookPen className="h-4 w-4 opacity-70" />
+                  Transcribe
+                </ToggleGroupItem>
+                <ToggleGroupItem
+                  value="mt"
+                  aria-label="Speech Translation"
+                  className="data-[state=on]:text-soniox text-gray-700 dark:text-gray-300 hover:bg-soniox/10 dark:hover:bg-soniox/20"
+                >
+                  <Languages className="h-4 w-4 opacity-70" />
+                  Translate
+                </ToggleGroupItem>
+              </ToggleGroup>
             </div>
             {mode === "stt" && (
               <div>
                 <div className="flex items-center space-x-2 mb-1">
                   <Label
                     htmlFor="input-lang"
-                    className="text-sm font-medium text-gray-700 dark:text-gray-300 block"
+                    className="text-sm font-semibold text-gray-700 dark:text-gray-300 block"
                   >
-                    Input language
+                    3. Select language
                   </Label>
                   <TooltipProvider>
-                    <Tooltip delayDuration={300}>
-                      <TooltipTrigger asChild>
-                        <Info className="h-4 w-4 cursor-help opacity-50" />
-                      </TooltipTrigger>
-                      <TooltipContent>
+                    <ResponsiveTooltip
+                      content={
                         <p className="max-w-xs">
                           Most providers require an input language. Soniox can
-                          auto-detect spoken language in real-time. Try it out
+                          auto-identify spoken language in real-time. Try it out
                           by selecting Multilingual option and start talking in
                           different languages.
                         </p>
-                      </TooltipContent>
-                    </Tooltip>
+                      }
+                    >
+                      <Info className="h-4 w-4 cursor-help opacity-50" />
+                    </ResponsiveTooltip>
                   </TooltipProvider>
                 </div>
                 <SearchSelect
@@ -234,7 +211,7 @@ export const ControlPanel: React.FC = () => {
                   onValueChange={handleLanguageHintChange}
                   disabled={isRecording}
                   options={[
-                    { value: "AUTO", label: "Multilingual (auto-detect)" },
+                    { value: "AUTO", label: "Multilingual (auto-identify)" },
                     ...(modelInfo?.languages.map((lang) => ({
                       value: lang.code,
                       label: lang.name,
@@ -250,9 +227,9 @@ export const ControlPanel: React.FC = () => {
             {mode === "mt" && <TranslationSettings />}
           </div>
 
-          <div className="w-full space-y-4 mb-6">
-            <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-2">
-              Settings
+          <div className="w-full space-y-4 mb-2">
+            <Label className="text-sm font-semibold text-gray-700 dark:text-gray-300 block mb-2">
+              4. Settings (optional)
             </Label>
             <div className="space-y-2">
               <div className="flex items-center space-x-2">
@@ -325,6 +302,9 @@ export const ControlPanel: React.FC = () => {
                   disabled={isRecording || isStarting}
                 />
               </div> */}
+            </div>
+            <div className="text-center hidden sm:block">
+              <FeatureComparisonDialog />
             </div>
           </div>
         </div>

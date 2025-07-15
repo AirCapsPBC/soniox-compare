@@ -1,11 +1,6 @@
 import { cn } from "@/lib/utils";
 import React from "react";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { ResponsiveTooltip } from "./ui/responsive-tooltip";
 
 export const Panel = ({
   title,
@@ -14,6 +9,7 @@ export const Panel = ({
   children,
   muted = false,
   className = "",
+  trailingElement,
 }: {
   title: string;
   subtitle?: string;
@@ -21,18 +17,16 @@ export const Panel = ({
   children: React.ReactNode;
   muted?: boolean;
   className?: string;
+  trailingElement?: React.ReactNode;
 }) => {
   const titleElement = titleTooltip ? (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <span className="cursor-default">{title}</span>
-        </TooltipTrigger>
-        <TooltipContent>
-          <p className="font-mono">{titleTooltip}</p>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <ResponsiveTooltip
+      content={
+        <p className="font-mono text-xs whitespace-pre-wrap">{titleTooltip}</p>
+      }
+    >
+      <span className="cursor-default">{title}</span>
+    </ResponsiveTooltip>
   ) : (
     title
   );
@@ -44,21 +38,29 @@ export const Panel = ({
         muted ? "bg-zinc-100" : "bg-white"
       )}
     >
-      <h2
-        className={cn(
-          "text-xl font-bold text-center capitalize px-4 sticky top-0 py-2 border-b",
-          muted ? "bg-zinc-100 text-zinc-700" : "bg-white text-zinc-800",
-          className
-        )}
-      >
-        {titleElement}
+      <div className="sticky top-0 border-b py-2">
+        <div className="flex flex-row justify-center px-4 items-center">
+          <div className="w-10 flex items-center justify-center"></div>
+          <h2
+            className={cn(
+              "text-sm md:text-xl font-bold text-center capitalize",
+              muted ? "bg-zinc-100 text-zinc-700" : "bg-white text-zinc-800",
+              className
+            )}
+          >
+            {titleElement}
+          </h2>
+          <div className="w-10 flex items-center justify-center">
+            {trailingElement}
+          </div>
+        </div>
         {subtitle && (
-          <p className="text-[10px] text-center text-zinc-400 lowercase">
+          <p className="text-[10px] font-bold text-center text-zinc-400 lowercase">
             {subtitle}
           </p>
         )}
-      </h2>
-      <div className="flex-grow overflow-y-auto">{children}</div>
+      </div>
+      <div className="flex-grow overflow-y-auto relative">{children}</div>
     </section>
   );
 };

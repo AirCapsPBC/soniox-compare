@@ -11,9 +11,14 @@ import {
   SONIOX_PROVIDER,
   type ProviderName,
 } from "@/lib/provider-features";
-import { OPERATION_MODES } from "@/lib/comparison-constants";
+import { useMemo } from "react";
 
 export type TranslationType = "one_way" | "two_way";
+
+export const OPERATION_MODES = [
+  { value: "stt" as "stt" | "mt", label: "Speech-to-Text" },
+  { value: "mt" as "stt" | "mt", label: "Speech Translation" },
+];
 
 export interface UrlSettings {
   mode: "stt" | "mt";
@@ -32,10 +37,10 @@ export interface UrlSettings {
 const defaultMode = OPERATION_MODES[0].value;
 const defaultLanguageHints: string[] = ["en"];
 const defaultContext: string = "";
-const defaultTargetTranslationLanguage = "en";
-const defaultSourceTranslationLanguages: string[] = ["*"];
+const defaultTargetTranslationLanguage = "es";
+const defaultSourceTranslationLanguages: string[] = ["en"];
 const defaultTranslationLanguageA = "en";
-const defaultTranslationLanguageB = "sl";
+const defaultTranslationLanguageB = "es";
 
 const initialComparisonProviders = ALL_PROVIDERS_LIST.filter(
   (p) => p !== SONIOX_PROVIDER
@@ -155,8 +160,23 @@ export function useUrlSettings() {
     return params.toString();
   };
 
+  const isValid = useMemo(() => {
+    if (settings.mode === "mt") {
+      if (settings.translationType === "one_way") {
+        return (
+          settings.targetTranslationLanguage &&
+          settings.sourceTranslationLanguages.length > 0
+        );
+      } else if (settings.translationType === "two_way") {
+        return settings.translationLanguageA && settings.translationLanguageB;
+      }
+    }
+    return true;
+  }, [settings]);
+
   return {
     settings,
+    isValid,
     setSettings,
     setMode: (mode: UrlSettings["mode"]) => setSettings({ mode }),
     setLanguageHints: (hints: string[]) =>

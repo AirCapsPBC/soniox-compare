@@ -21,15 +21,24 @@ def error_message(provider: str, message: str) -> dict:
     }
 
 
+def info_message(provider: str, message: str, level: str = "info") -> dict:
+    return {
+        "type": "info",
+        "provider": provider,
+        "message": message,
+        "level": level,
+    }
+
+
 def make_part(
     text: str,
     is_final: bool = True,
-    speaker: int = None,
-    language: str = None,
-    start_ms: int = None,
-    end_ms: int = None,
+    speaker: int | None = None,
+    language: str | None = None,
+    start_ms: int | None = None,
+    end_ms: int | None = None,
     confidence: float = 1.0,
-    translation_status: str = None,
+    translation_status: str | None = None,
 ) -> dict:
     return {
         "text": text,

@@ -24,7 +24,11 @@ class SonioxProvider(BaseProvider):
     async def connect(self) -> None:
         if self._is_connected:
             return
-        self.validate_provider_capabilities("Soniox")
+
+        warnings = self.validate_provider_capabilities("Soniox")
+        for warning in warnings:
+            await self.host_queue.put(warning)
+
         try:
             self.websocket = await websockets.connect(self.config.service.websocket_url)
             init_msg = {

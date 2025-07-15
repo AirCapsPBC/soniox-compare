@@ -23,7 +23,16 @@ class AssemblyProvider(BaseProvider):
     async def connect(self) -> None:
         if self._is_connected:
             return
-        self.validate_provider_capabilities("AssemblyAI")
+
+        warnings = self.validate_provider_capabilities("AssemblyAI")
+        for warning in warnings:
+            await self.host_queue.put(warning)
+
+        if self.config.params.enable_language_identification:
+            raise ProviderError(
+                "AssemblyAI only supports language identification in batch, not streaming."
+                "\n[Click here for more info](https://www.assemblyai.com/docs/speech-to-text/pre-recorded-audio/automatic-language-detection)"
+            )
 
         if len(self.config.params.language_hints) == 0:
             raise ProviderError("AssemblyAI does not support multilingual mode.")
@@ -103,7 +112,6 @@ class AssemblyProvider(BaseProvider):
         )
 
     async def _handle_turn(self, data: dict[str, Any]) -> None:
-
         if "end_of_turn" not in data:
             raise ProviderError("Response missing 'end_of_turn' field.")
         end_of_turn = data["end_of_turn"]
@@ -114,7 +122,6 @@ class AssemblyProvider(BaseProvider):
 
         is_final = is_formatted and end_of_turn
         is_partial = not end_of_turn
-
         if not (is_final or is_partial):
             # There are multiple messages - all combination of end_of_turn and
             # turn_is_formatted. We consider final messages only if they are formatted.
@@ -130,14 +137,16 @@ class AssemblyProvider(BaseProvider):
                 is_final=is_final,
             )
             parts.append(word_part)
-        if is_final and self.config.params.enable_endpoint_detection == True:
-            parts.append(make_part(
-                text=" <end>",
-                is_final=True,
-                start_ms=word.get("start"),
-                end_ms=word.get("end"),
-                confidence=data.get("end_of_turn_confidence"),
-                ))
+        if is_final and self.config.params.enable_endpoint_detection:
+            parts.append(
+                make_part(
+                    text=" <end>",
+                    is_final=True,
+                    start_ms=word.get("start"),
+                    end_ms=word.get("end"),
+                    confidence=data.get("end_of_turn_confidence"),
+                )
+            )
         await self.host_queue.put(
             {
                 "type": "data",
@@ -148,14 +157,14 @@ class AssemblyProvider(BaseProvider):
 
     async def _recv_loop(self) -> None:
         try:
-            assert (
-                self.websocket is not None
-            ), "Receive loop called, but socket not initialized."
+            assert self.websocket is not None, (
+                "Receive loop called, but socket not initialized."
+            )
             async for resp in self.websocket:
                 data = json.loads(resp)
-                assert isinstance(
-                    data, dict
-                ), f"json.loads expected to return a dict, got {type(data)}"
+                assert isinstance(data, dict), (
+                    f"json.loads expected to return a dict, got {type(data)}"
+                )
 
                 if "error" in data:
                     await self._handle_error(data["error"])
@@ -165,7 +174,7 @@ class AssemblyProvider(BaseProvider):
                     raise ProviderError("Received message missing 'type' field")
 
                 message_type = data["type"]
-                
+
                 if message_type == "Begin":
                     print("AssemblyAI session started.")
 
@@ -202,9 +211,7 @@ class AssemblyProvider(BaseProvider):
                 comment="Supported for prerecorded audio, not for streaming.",
             ),
             language_hints=unsupported,
-            language_identification=FeatureStatus.unsupported(
-                comment="Supported for prerecorded audio, not for streaming.",
-            ),
+            language_identification=unsupported,
             speaker_diarization=FeatureStatus.unsupported(
                 comment="Supported for prerecorded audio, not for streaming.",
             ),
@@ -223,15 +230,6 @@ class AssemblyProvider(BaseProvider):
             ),
             # end of turn detection:
             # https://www.assemblyai.com/docs/speech-to-text/universal-streaming
-            endpoint_detection=FeatureStatus.supported(
-                comment="AssemblyAI’s end-of-turn detection functionality is "
-                "integrated into our Streaming STT model, leveraging both acoustic "
-                "and semantic features, and is coupled with a traditional "
-                "silence-based heuristic approach. Both mechanisms work jointly "
-                "and either can trigger end-of-turn detection throughout the "
-                "audio stream. ",
-            ),
-            manual_finalization=FeatureStatus.unsupported(
-                comment="Supported in legacy streaming API using ForceEndpoint.",
-            ),
+            endpoint_detection=supported,
+            manual_finalization=supported,
         )

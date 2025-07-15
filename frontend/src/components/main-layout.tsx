@@ -1,8 +1,17 @@
 import React, { useState, useEffect } from "react";
-import { ListChecks, Undo2, Menu } from "lucide-react";
+import { Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { Button } from "./ui/button";
+import { BottomNavbar } from "./bottom-navbar";
+import { useComparison } from "@/contexts/comparison-context";
+import { useSwipe } from "@/hooks/use-swipe";
 
 interface MainLayoutProps {
   sidebarContent: React.ReactNode;
@@ -15,46 +24,59 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   mainContent,
   featureTableContent,
 }) => {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeView, setActiveView] = useState<"main" | "features">("main");
+  const { recordingState, stopRecording } = useComparison();
+
+  const swipeHandlers = useSwipe({
+    onSwipeRight: () => {
+      // Open sidebar with a swipe from the left edge of the screen
+      if (activeView === "main" && !isSidebarOpen) {
+        setIsSidebarOpen(true);
+      }
+    },
+  });
 
   return (
-    <div className="w-full h-screen flex flex-row font-sans antialiased bg-white dark:bg-gray-950 text-gray-800 dark:text-gray-200 overflow-hidden">
-      <Sidebar>{sidebarContent}</Sidebar>
+    <div
+      {...swipeHandlers}
+      style={{ touchAction: "pan-y" }}
+      className="w-full h-dvh flex flex-row font-sans antialiased bg-white dark:bg-gray-950 text-gray-800 dark:text-gray-200 overflow-hidden"
+    >
+      <Sidebar isSheetOpen={isSidebarOpen} setIsSheetOpen={setIsSidebarOpen}>
+        {sidebarContent}
+      </Sidebar>
 
       {/* Main content area */}
-      <main className="flex-grow relative h-screen">
+      <main className="flex-grow relative h-dvh flex flex-col">
         {/* Conditionally render the active view */}
-        <div className="w-full h-full">
+        <div className="w-full flex-1">
           {activeView === "main" ? mainContent : featureTableContent}
         </div>
 
-        {/* The ViewSwitcher component handles the UI for changing views */}
-        <div className="fixed bottom-6 right-6 flex flex-col items-center gap-3 z-50">
-          {activeView === "features" && (
-            <button
-              onClick={() => setActiveView("main")}
-              className={cn(
-                "invisible p-3 cursor-pointer rounded-full bg-gray-400/50 text-white hover:bg-black/60 backdrop-blur-xs transition-all duration-200",
-                activeView === "features" && "visible"
-              )}
-              aria-label="Switch to main view"
-            >
-              <Undo2 size={24} />
-            </button>
-          )}
-          {activeView === "main" && (
-            <button
-              onClick={() => setActiveView("features")}
-              className={cn(
-                "invisible p-3 cursor-pointer rounded-full bg-gray-400/50 text-white hover:bg-black/60 backdrop-blur-xs transition-all duration-200",
-                activeView === "main" && "visible"
-              )}
-              aria-label="Switch to features view"
-            >
-              <ListChecks size={24} />
-            </button>
-          )}
-        </div>
+        {/* Desktop FAB */}
+        {/* Feature table moved to dialog (triggered from sidebar), 
+        could reuse this for something else maybe */}
+        {/* <div className="fixed bottom-6 right-6 hidden md:flex flex-col items-center gap-3 z-50">
+          <button
+            onClick={() =>
+              setActiveView(activeView === "main" ? "features" : "main")
+            }
+            className="p-3 cursor-pointer rounded-full bg-gray-400/50 text-white hover:bg-black/60 backdrop-blur-xs transition-all duration-200"
+            aria-label="Switch view"
+          >
+            {activeView === "main" ? <ListChecks size={24} /> : <X size={24} />}
+          </button>
+        </div> */}
+
+        {/* Mobile Bottom Navbar */}
+        <BottomNavbar
+          activeView={activeView}
+          setActiveView={setActiveView}
+          onOpenSettings={() => setIsSidebarOpen(true)}
+          recordingState={recordingState}
+          stopRecording={stopRecording}
+        />
       </main>
     </div>
   );
@@ -62,11 +84,15 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
 
 interface SidebarProps {
   children: React.ReactNode;
+  isSheetOpen: boolean;
+  setIsSheetOpen: (isOpen: boolean) => void;
 }
-
-const Sidebar: React.FC<SidebarProps> = ({ children }) => {
+const Sidebar: React.FC<SidebarProps> = ({
+  children,
+  isSheetOpen,
+  setIsSheetOpen,
+}) => {
   const [shouldAnimate, setShouldAnimate] = useState(true);
-  const [isSheetOpen, setIsSheetOpen] = useState(false);
 
   // This effect is used to prevent the sheet from animating when the window is resized and it automatically closes.
   useEffect(() => {
@@ -83,14 +109,14 @@ const Sidebar: React.FC<SidebarProps> = ({ children }) => {
     window.addEventListener("resize", handleResize);
     handleResize(); // Initial check
     return () => window.removeEventListener("resize", handleResize);
-  }, []);
+  }, [setIsSheetOpen]);
 
   return (
     <>
       {/* Static Sidebar for larger screens */}
       <aside
         className={cn(
-          "sticky top-0 h-screen w-72 flex-col border-r border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900",
+          "sticky shrink-0 top-0 h-screen w-72 flex-col border-r border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900",
           "hidden lg:flex" // Always apply these for the static version
         )}
       >
@@ -98,8 +124,9 @@ const Sidebar: React.FC<SidebarProps> = ({ children }) => {
       </aside>
 
       {/* Hamburger menu and Sheet for smaller screens */}
-      <div className="lg:hidden absolute top-3 left-0 z-20">
+      <div className="hidden md:flex lg:hidden absolute top-3 left-0 z-20">
         <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+          <SheetTitle hidden>Control Panel</SheetTitle>
           <SheetTrigger asChild>
             <Button
               variant="outline"
@@ -115,6 +142,9 @@ const Sidebar: React.FC<SidebarProps> = ({ children }) => {
             className={cn("w-72 p-0", !shouldAnimate && "!duration-0")}
             showCloseButton={false} // Assuming this prop exists as per your previous changes
           >
+            <SheetDescription hidden>
+              Settings for the comparison
+            </SheetDescription>
             {children}
           </SheetContent>
         </Sheet>

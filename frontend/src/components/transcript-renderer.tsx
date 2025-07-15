@@ -2,13 +2,17 @@ import type { OutputData, TranscriptPart } from "@/contexts/comparison-context";
 import { cn } from "@/lib/utils";
 import React, { memo } from "react";
 import { AutoScrollContainer } from "./ui/autoscroll";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import MarkdownRenderer from "./markdown-renderer";
+import { ResponsiveTooltip } from "./ui/responsive-tooltip";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import Markdown from "react-markdown";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "./ui/dialog";
+import { Button } from "./ui/button";
 
 export const SPEAKER_COLORS = [
   "#007ecc", // Blue
@@ -43,7 +47,7 @@ interface TranscriptRendererProps {
   appError?: string | null;
 }
 
-const TranscriptRenderer: React.FC<TranscriptRendererProps> = ({
+export const TranscriptRenderer: React.FC<TranscriptRendererProps> = ({
   outputData,
   appError,
 }) => {
@@ -144,11 +148,11 @@ const TranscriptRenderer: React.FC<TranscriptRendererProps> = ({
 
   if (appError) {
     content = <ErrorMessage error={appError} />;
-  } else if (error) {
-    content = <ErrorMessage error={error} />;
+    // } else if (error) {
+    //   content = <ErrorMessage error={error} />;
   } else if (statusMessage) {
     content = <p className="text-gray-500 italic">{statusMessage}</p>;
-  } else if (finalParts.length === 0 && nonFinalParts.length === 0) {
+  } else if (finalParts.length === 0 && nonFinalParts.length === 0 && !error) {
     content = <p className="text-gray-400 italic">No output yet...</p>;
   } else {
     const finalRender = renderParts(
@@ -177,37 +181,53 @@ const TranscriptRenderer: React.FC<TranscriptRendererProps> = ({
 
   return (
     <TooltipProvider delayDuration={300}>
-      <AutoScrollContainer className="absolute inset-0 pb-20">
+      <AutoScrollContainer className="absolute inset-0 pb-5">
         {content}
       </AutoScrollContainer>
     </TooltipProvider>
   );
 };
 
+const MAX_ERROR_LENGTH = 150;
+
 const ErrorMessage = ({ error }: { error: string }) => {
-  return (
-    <div className="text-soniox bg-blue-50 p-4 absolute left-1/2 top-1/2 -translate-y-1/2 -translate-x-1/2 text-center text-sm rounded-2xl">
-      <div className="brightness-90">
-        <Markdown
-          components={{
-            a: ({ ...props }) => (
-              <a
-                className="text-soniox underline underline-offset-1"
-                {...props}
-                target="_blank"
-                rel="noreferrer"
-              />
-            ),
-          }}
-        >
-          {error}
-        </Markdown>
+  if (error.length <= MAX_ERROR_LENGTH) {
+    return (
+      <div className="text-soniox bg-blue-50 p-2 md:p-4 absolute left-1/2 top-1/2 -translate-y-1/2 -translate-x-1/2 text-center text-sm rounded-2xl max-w-[90%]">
+        <div className="brightness-90">
+          <MarkdownRenderer>{error}</MarkdownRenderer>
+        </div>
       </div>
-    </div>
+    );
+  }
+
+  const truncatedError = error.substring(0, MAX_ERROR_LENGTH) + "...";
+
+  return (
+    <Dialog>
+      <div className="text-soniox bg-blue-50 p-4 absolute left-1/2 top-1/2 -translate-y-1/2 -translate-x-1/2 text-center text-sm rounded-2xl max-w-[90%] space-y-2">
+        <div className="brightness-90">
+          <MarkdownRenderer>{truncatedError}</MarkdownRenderer>
+        </div>
+        <DialogTrigger asChild>
+          <Button size="sm" variant="link" className="text-soniox p-0 h-auto">
+            View Full Error
+          </Button>
+        </DialogTrigger>
+      </div>
+      <DialogContent className="max-w-[90vw] md:max-w-3xl max-h-[80vh]">
+        <DialogHeader>
+          <DialogTitle>Error Details</DialogTitle>
+        </DialogHeader>
+        <div className="overflow-y-auto">
+          <pre className="text-sm text-left bg-gray-100 dark:bg-gray-900 p-4 rounded-md whitespace-pre-wrap break-words">
+            <code>{error}</code>
+          </pre>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 };
-
-export default TranscriptRenderer;
 
 const formatTime = (milliseconds: number): string => {
   if (typeof milliseconds !== "number" || isNaN(milliseconds)) return "";
@@ -248,25 +268,26 @@ const WordToken = memo(
       }
 
       return (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span
-              className={cn(
-                "px-2 py-1 text-gray-700 rounded-lg text-[10px] font-semibold tracking-wider",
-                isFinalStyling ? "opacity-50" : "opacity-60"
-              )}
-            >
-              {`<end>`}
-            </span>
-          </TooltipTrigger>
-          {endTooltipParts.length > 0 && (
-            <TooltipContent>
-              {endTooltipParts.map((info, idx) => (
-                <p key={idx}>{info}</p>
-              ))}
-            </TooltipContent>
-          )}
-        </Tooltip>
+        <ResponsiveTooltip
+          content={
+            endTooltipParts.length > 0 && (
+              <>
+                {endTooltipParts.map((info, idx) => (
+                  <p key={idx}>{info}</p>
+                ))}
+              </>
+            )
+          }
+        >
+          <span
+            className={cn(
+              "px-2 py-1 text-gray-700 rounded-lg text-[10px] font-semibold tracking-wider",
+              isFinalStyling ? "opacity-50" : "opacity-60"
+            )}
+          >
+            {`<end>`}
+          </span>
+        </ResponsiveTooltip>
       );
     }
 
@@ -298,27 +319,28 @@ const WordToken = memo(
     return (
       <>
         {languageTag}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span
-              className={cn(
-                textClassName,
-                part.translation_status === "translation" &&
-                  "text-gray-400 dark:text-gray-500 text-sm italic",
-                "hover:text-soniox rounded-lg"
-              )}
-            >
-              {textToRender}
-            </span>
-          </TooltipTrigger>
-          {titleParts.length > 0 && (
-            <TooltipContent>
-              {titleParts.map((info, idx) => (
-                <p key={idx}>{info}</p>
-              ))}
-            </TooltipContent>
-          )}
-        </Tooltip>
+        <ResponsiveTooltip
+          content={
+            titleParts.length > 0 && (
+              <div>
+                {titleParts.map((info, idx) => (
+                  <p key={idx}>{info}</p>
+                ))}
+              </div>
+            )
+          }
+        >
+          <span
+            className={cn(
+              textClassName,
+              part.translation_status === "translation" &&
+                "text-gray-400 dark:text-gray-500 text-sm italic",
+              "hover:text-soniox rounded-lg"
+            )}
+          >
+            {textToRender}
+          </span>
+        </ResponsiveTooltip>
       </>
     );
   }

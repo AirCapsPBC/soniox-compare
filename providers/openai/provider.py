@@ -32,7 +32,11 @@ class OpenaiProvider(BaseProvider):
     async def connect(self) -> None:
         if self._is_connected:
             return
-        self.validate_provider_capabilities("OpenAI")
+
+        warnings = self.validate_provider_capabilities("OpenAI")
+        for warning in warnings:
+            await self.host_queue.put(warning)
+
         try:
             self.end_event.clear()
             if len(self.config.params.language_hints) > 1:
@@ -87,7 +91,7 @@ class OpenaiProvider(BaseProvider):
                 ) as resp:
                     if resp.status != 200:
                         text = await resp.text()
-                        raise Exception(
+                        raise ProviderError(
                             "Failed to create transcription session: "
                             f" {resp.status} {text}"
                         )
@@ -108,7 +112,9 @@ class OpenaiProvider(BaseProvider):
                 "session": session_settings,
             }
             if language is not None:
-                update_event["session"]["input_audio_transcription"]["language"] = language  # type: ignore # noqa
+                update_event["session"]["input_audio_transcription"]["language"] = (
+                    language  # type: ignore # noqa
+                )
 
             await self.websocket.send(json.dumps(update_event))
 

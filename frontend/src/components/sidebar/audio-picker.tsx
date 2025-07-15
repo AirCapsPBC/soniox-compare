@@ -6,38 +6,43 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "../ui/dialog";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "../ui/tooltip";
 import { Label } from "../ui/label";
 import { useComparison } from "@/contexts/comparison-context";
 import { Button } from "../ui/button";
 import { FileAudio, Upload } from "lucide-react";
 import { useState, useRef } from "react";
+import { ResponsiveTooltip } from "../ui/responsive-tooltip";
+import { TooltipProvider } from "@radix-ui/react-tooltip";
 
 const PREDEFINED_AUDIO_FILES: { id: string; name: string; url: string }[] = [
   {
     id: "coffee_shop.mp3",
-    name: "Coffee shop",
+    name: "Coffee shop (English)",
     url: "https://soniox.com/media/examples/coffee_shop.mp3",
   },
   {
-    id: "stt_medical.mp3",
-    name: "Doctor-patient",
-    url: "https://soniox.com/media/examples/stt_medical.mp3",
+    id: "stt_medical_2.mp3",
+    name: "Clinical note (English)",
+    url: "https://soniox.com/media/examples/stt_medical_2.mp3",
   },
-
+  {
+    id: "stt_it_en.mp3",
+    name: "Multilingual (Italian & English)",
+    url: "https://soniox.com/media/examples/stt_it_en.mp3",
+  },
   {
     id: "mt_zh_en_one_way.mp3",
-    name: "Podcast",
+    name: "Podcast (Chinese & English)",
     url: "https://soniox.com/media/examples/mt_zh_en_one_way.mp3",
   },
   {
+    id: "mt_es_en.mp3",
+    name: "Street conversation (Spanish & English)",
+    url: "https://soniox.com/media/examples/mt_es_en.mp3",
+  },
+  {
     id: "mt_en_tr_two_way.mp3",
-    name: "Trip to Turkey",
+    name: "Trip to Turkey (English & Turkish)",
     url: "https://soniox.com/media/examples/mt_en_tr_two_way.mp3",
   },
 ];
@@ -53,7 +58,6 @@ export const ChooseAudioFileDialog = ({ disabled }: { disabled?: boolean }) => {
   const [isFileDialogOpen, setIsFileDialogOpen] = useState(false);
 
   const handleSelectPredefinedFile = async (url: string, name: string) => {
-    console.log("Selected predefined file:", name, url);
     setIsProcessingFile(true);
     clearAudio();
     setAudio(url, name);
@@ -70,7 +74,6 @@ export const ChooseAudioFileDialog = ({ disabled }: { disabled?: boolean }) => {
   ) => {
     const file = event.target.files?.[0];
     if (file) {
-      console.log("Selected custom file:", file.name);
       setIsProcessingFile(true);
       const fileUrl = URL.createObjectURL(file);
       clearAudio();
@@ -89,26 +92,21 @@ export const ChooseAudioFileDialog = ({ disabled }: { disabled?: boolean }) => {
   return (
     <Dialog open={isFileDialogOpen} onOpenChange={setIsFileDialogOpen}>
       <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <DialogTrigger asChild>
-              <Button
-                size="icon"
-                variant="outline"
-                className="border-soniox text-soniox hover:border-black"
-                disabled={
-                  isRecording || isStarting || isProcessingFile || disabled
-                }
-                aria-label="Select audio file"
-              >
-                <Upload className="w-4 h-4" />
-              </Button>
-            </DialogTrigger>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Select audio file</p>
-          </TooltipContent>
-        </Tooltip>
+        <ResponsiveTooltip content={<p>Select audio file</p>}>
+          <DialogTrigger asChild>
+            <Button
+              size="icon"
+              variant="outline"
+              className="border-soniox text-soniox hover:border-black"
+              disabled={
+                isRecording || isStarting || isProcessingFile || disabled
+              }
+              aria-label="Select audio file"
+            >
+              <Upload className="w-4 h-4" />
+            </Button>
+          </DialogTrigger>
+        </ResponsiveTooltip>
       </TooltipProvider>
       <DialogContent>
         <DialogHeader>

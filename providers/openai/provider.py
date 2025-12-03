@@ -3,10 +3,34 @@ import traceback
 import math
 import base64
 import json
+import struct
 from typing import Any
 
 import aiohttp
 import websockets
+
+
+def apply_audio_gain(audio_bytes: bytes, gain: float) -> bytes:
+    """Apply gain to 16-bit PCM audio data."""
+    if gain == 1.0:
+        return audio_bytes
+
+    # Number of 16-bit samples
+    num_samples = len(audio_bytes) // 2
+
+    # Unpack as signed 16-bit integers (little-endian)
+    samples = struct.unpack(f"<{num_samples}h", audio_bytes)
+
+    # Apply gain and clamp to int16 range
+    amplified = []
+    for sample in samples:
+        new_val = int(sample * gain)
+        # Clamp to int16 range (-32768 to 32767)
+        new_val = max(-32768, min(32767, new_val))
+        amplified.append(new_val)
+
+    # Pack back to bytes
+    return struct.pack(f"<{num_samples}h", *amplified)
 
 from providers.base_provider import (
     BaseProvider,
@@ -160,10 +184,14 @@ class OpenaiProvider(BaseProvider):
         return items
 
     async def _send_loop(self):
+        gain = self.config.service.audio_gain
         while self._is_connected:
             msg = await self.client_queue.get()
             try:
                 if self.websocket:
+                    # Apply gain amplification if configured
+                    if isinstance(msg, bytes) and gain != 1.0:
+                        msg = apply_audio_gain(msg, gain)
                     audio_chunk = base64.b64encode(msg).decode("utf-8")
                     audio_event = {
                         "type": "input_audio_buffer.append",

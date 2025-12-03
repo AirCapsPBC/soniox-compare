@@ -55,7 +55,7 @@ def get_openai_service_config(params: ProviderParams):
         websocket_url="wss://api.openai.com/v1/realtime",
         model="gpt-4o-transcribe",
         prompt=prompt,
-        audio_gain=2.0,  # Amplify mic input for OpenAI (adjust as needed)
+        audio_gain=8.0,  # Amplify mic input for OpenAI (adjust as needed)
     )
 
 

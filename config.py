@@ -51,17 +51,18 @@ def get_openai_service_config(params: ProviderParams):
 
     return ServiceConfig(
         provider_name="openai",
-        api_key=os.environ["OPENAI_API_KEY"],
+        api_key="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",
         websocket_url="wss://api.openai.com/v1/realtime",
         model="gpt-4o-transcribe",
         prompt=prompt,
+        audio_gain=2.0,  # Amplify mic input for OpenAI (adjust as needed)
     )
 
 
 def get_deepgram_service_config():
     return ServiceConfig(
         provider_name="deepgram",
-        api_key=os.environ["DEEPGRAM_API_KEY"],
+        api_key="962db3f01d8c104fdbc0cedd99dac53798c60b70",
         # consider turning on smart_format=true
         websocket_url="wss://api.deepgram.com/v1/listen",
         model="nova-3",
@@ -80,8 +81,8 @@ def get_assemblyai_service_config():
 def get_azure_service_config():
     return ServiceConfig(
         provider_name="azure",
-        api_key=os.environ["AZURE_API_KEY"],
-        region=os.environ["AZURE_REGION"],
+        api_key="F98Ftg4YsAetOixQ0ZW45I7G29qn2YdEdYlHUItCUrT9ZWIY4vDVJQQJ99BLACHYHv6XJ3w3AAAAACOGYL95",
+        region="eastus2",
     )
 
 

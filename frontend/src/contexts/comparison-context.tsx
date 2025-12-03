@@ -9,7 +9,6 @@ import React, {
 import {
   ALL_PROVIDERS_LIST,
   type ProviderName,
-  SONIOX_PROVIDER,
 } from "../lib/provider-features";
 import { MockWebSocket } from "../lib/mock-websocket";
 import { useUrlSettings } from "../hooks/use-url-settings";
@@ -345,10 +344,7 @@ export const ComparisonProvider = ({
     setRecordingState("starting");
     setAppError(null);
 
-    const currentProviders: ProviderName[] = [
-      SONIOX_PROVIDER,
-      ...settings.selectedProviders,
-    ];
+    const currentProviders: ProviderName[] = [...settings.selectedProviders];
     activeProvidersRef.current = currentProviders;
     resetProviderOutputs(currentProviders);
 

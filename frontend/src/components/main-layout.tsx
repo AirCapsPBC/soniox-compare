@@ -1,154 +1,68 @@
-import React, { useState, useEffect } from "react";
-import { Menu } from "lucide-react";
-import { cn } from "@/lib/utils";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
-import { Button } from "./ui/button";
-import { BottomNavbar } from "./bottom-navbar";
+import React from "react";
+import { Mic, StopCircle } from "lucide-react";
 import { useComparison } from "@/contexts/comparison-context";
-import { useSwipe } from "@/hooks/use-swipe";
+import { AudioWaveButton } from "./audio-wave-button";
+import { cn } from "@/lib/utils";
 
 interface MainLayoutProps {
-  sidebarContent: React.ReactNode;
   mainContent: React.ReactNode;
-  featureTableContent?: React.ReactNode;
 }
 
-export const MainLayout: React.FC<MainLayoutProps> = ({
-  sidebarContent,
-  mainContent,
-  featureTableContent,
-}) => {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [activeView, setActiveView] = useState<"main" | "features">("main");
-  const { recordingState, stopRecording } = useComparison();
+export const MainLayout: React.FC<MainLayoutProps> = ({ mainContent }) => {
+  const { recordingState, startRecording, stopRecording } = useComparison();
 
-  const swipeHandlers = useSwipe({
-    onSwipeRight: () => {
-      // Open sidebar with a swipe from the left edge of the screen
-      if (activeView === "main" && !isSidebarOpen) {
-        setIsSidebarOpen(true);
-      }
-    },
-  });
+  const isRecording = recordingState === "recording";
+  const isStarting = recordingState === "starting";
+  const isStopping = recordingState === "stopping";
+  const isConnecting = recordingState === "connecting";
+
+  const handleButtonClick = () => {
+    if (isRecording) {
+      stopRecording();
+    } else {
+      startRecording();
+    }
+  };
 
   return (
-    <div
-      {...swipeHandlers}
-      style={{ touchAction: "pan-y" }}
-      className="w-full h-dvh flex flex-row font-sans antialiased bg-white dark:bg-gray-950 text-gray-800 dark:text-gray-200 overflow-hidden"
-    >
-      <Sidebar isSheetOpen={isSidebarOpen} setIsSheetOpen={setIsSidebarOpen}>
-        {sidebarContent}
-      </Sidebar>
-
+    <div className="w-full h-dvh flex flex-col font-sans antialiased bg-white dark:bg-gray-950 text-gray-800 dark:text-gray-200 overflow-hidden">
       {/* Main content area */}
-      <main className="flex-grow relative h-dvh flex flex-col">
-        {/* Conditionally render the active view */}
-        <div className="w-full flex-1">
-          {activeView === "main" ? mainContent : featureTableContent}
-        </div>
+      <main className="flex-grow relative h-full flex flex-col">
+        <div className="w-full flex-1 overflow-hidden">{mainContent}</div>
 
-        {/* Desktop FAB */}
-        {/* Feature table moved to dialog (triggered from sidebar), 
-        could reuse this for something else maybe */}
-        {/* <div className="fixed bottom-6 right-6 hidden md:flex flex-col items-center gap-3 z-50">
-          <button
-            onClick={() =>
-              setActiveView(activeView === "main" ? "features" : "main")
-            }
-            className="p-3 cursor-pointer rounded-full bg-gray-400/50 text-white hover:bg-black/60 backdrop-blur-xs transition-all duration-200"
-            aria-label="Switch view"
+        {/* Floating Start/Stop Button */}
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
+          <AudioWaveButton
+            onClick={handleButtonClick}
+            disabled={isStarting || isStopping}
+            className={cn(
+              "px-8 py-4 text-lg font-semibold rounded-full shadow-2xl transition-all duration-300",
+              "min-w-[200px]",
+              isRecording
+                ? "bg-red-500 hover:bg-red-600"
+                : "bg-blue-600 hover:bg-blue-700"
+            )}
           >
-            {activeView === "main" ? <ListChecks size={24} /> : <X size={24} />}
-          </button>
-        </div> */}
-
-        {/* Mobile Bottom Navbar */}
-        <BottomNavbar
-          activeView={activeView}
-          setActiveView={setActiveView}
-          onOpenSettings={() => setIsSidebarOpen(true)}
-          recordingState={recordingState}
-          stopRecording={stopRecording}
-        />
+            {isRecording ? (
+              <div className="flex flex-row items-center gap-x-3">
+                <StopCircle className="w-6 h-6" />
+                <span>
+                  {isConnecting
+                    ? "Connecting..."
+                    : isStopping
+                    ? "Stopping..."
+                    : "Stop"}
+                </span>
+              </div>
+            ) : (
+              <div className="flex flex-row items-center gap-x-3">
+                <Mic className="w-6 h-6" />
+                <span>{isStarting ? "Starting..." : "Start Talking"}</span>
+              </div>
+            )}
+          </AudioWaveButton>
+        </div>
       </main>
     </div>
-  );
-};
-
-interface SidebarProps {
-  children: React.ReactNode;
-  isSheetOpen: boolean;
-  setIsSheetOpen: (isOpen: boolean) => void;
-}
-const Sidebar: React.FC<SidebarProps> = ({
-  children,
-  isSheetOpen,
-  setIsSheetOpen,
-}) => {
-  const [shouldAnimate, setShouldAnimate] = useState(true);
-
-  // This effect is used to prevent the sheet from animating when the window is resized and it automatically closes.
-  useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth >= 1024) {
-        // Tailwind's default lg breakpoint
-        setShouldAnimate(false);
-        setIsSheetOpen(false);
-        setTimeout(() => {
-          setShouldAnimate(true);
-        }, 100);
-      }
-    };
-    window.addEventListener("resize", handleResize);
-    handleResize(); // Initial check
-    return () => window.removeEventListener("resize", handleResize);
-  }, [setIsSheetOpen]);
-
-  return (
-    <>
-      {/* Static Sidebar for larger screens */}
-      <aside
-        className={cn(
-          "sticky shrink-0 top-0 h-screen w-72 flex-col border-r border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900",
-          "hidden lg:flex" // Always apply these for the static version
-        )}
-      >
-        {children}
-      </aside>
-
-      {/* Hamburger menu and Sheet for smaller screens */}
-      <div className="hidden md:flex lg:hidden absolute top-3 left-0 z-20">
-        <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-          <SheetTitle hidden>Control Panel</SheetTitle>
-          <SheetTrigger asChild>
-            <Button
-              variant="outline"
-              className="translate-x-3"
-              size="icon"
-              aria-label="Clear transcripts"
-            >
-              <Menu className="w-4 h-4" />
-            </Button>
-          </SheetTrigger>
-          <SheetContent
-            side="left"
-            className={cn("w-72 p-0", !shouldAnimate && "!duration-0")}
-            showCloseButton={false} // Assuming this prop exists as per your previous changes
-          >
-            <SheetDescription hidden>
-              Settings for the comparison
-            </SheetDescription>
-            {children}
-          </SheetContent>
-        </Sheet>
-      </div>
-    </>
   );
 };

@@ -92,10 +92,10 @@ export const TranscriptRenderer: React.FC<TranscriptRendererProps> = ({
         elementsArray.push(
           <div
             key={`${keyPrefix}-header-${index}`}
-            className="mt-3 text-base"
+            className="mt-6 text-3xl"
             style={{ color: headerDivColor }}
           >
-            <span key="spk-name" className="font-semibold uppercase text-sm">
+            <span key="spk-name" className="font-semibold uppercase text-3xl">
               SPEAKER {partSpeaker}
             </span>
           </div>
@@ -151,9 +151,9 @@ export const TranscriptRenderer: React.FC<TranscriptRendererProps> = ({
     // } else if (error) {
     //   content = <ErrorMessage error={error} />;
   } else if (statusMessage) {
-    content = <p className="text-gray-500 italic">{statusMessage}</p>;
+    content = <p className="text-gray-500 italic text-3xl">{statusMessage}</p>;
   } else if (finalParts.length === 0 && nonFinalParts.length === 0 && !error) {
-    content = <p className="text-gray-400 italic">No output yet...</p>;
+    content = <p className="text-gray-400 italic text-3xl">No output yet...</p>;
   } else {
     const finalRender = renderParts(
       finalParts,
@@ -181,7 +181,7 @@ export const TranscriptRenderer: React.FC<TranscriptRendererProps> = ({
 
   return (
     <TooltipProvider delayDuration={300}>
-      <AutoScrollContainer className="absolute inset-0 pb-5">
+      <AutoScrollContainer className="absolute inset-0 pb-24 px-4">
         {content}
       </AutoScrollContainer>
     </TooltipProvider>
@@ -193,7 +193,7 @@ const MAX_ERROR_LENGTH = 150;
 const ErrorMessage = ({ error }: { error: string }) => {
   if (error.length <= MAX_ERROR_LENGTH) {
     return (
-      <div className="text-soniox bg-blue-50 p-2 md:p-4 absolute left-1/2 top-1/2 -translate-y-1/2 -translate-x-1/2 text-center text-sm rounded-2xl max-w-[90%]">
+      <div className="text-blue-600 bg-blue-50 p-2 md:p-4 absolute left-1/2 top-1/2 -translate-y-1/2 -translate-x-1/2 text-center text-base rounded-2xl max-w-[90%]">
         <div className="brightness-90">
           <MarkdownRenderer>{error}</MarkdownRenderer>
         </div>
@@ -205,12 +205,12 @@ const ErrorMessage = ({ error }: { error: string }) => {
 
   return (
     <Dialog>
-      <div className="text-soniox bg-blue-50 p-4 absolute left-1/2 top-1/2 -translate-y-1/2 -translate-x-1/2 text-center text-sm rounded-2xl max-w-[90%] space-y-2">
+      <div className="text-blue-600 bg-blue-50 p-4 absolute left-1/2 top-1/2 -translate-y-1/2 -translate-x-1/2 text-center text-base rounded-2xl max-w-[90%] space-y-2">
         <div className="brightness-90">
           <MarkdownRenderer>{truncatedError}</MarkdownRenderer>
         </div>
         <DialogTrigger asChild>
-          <Button size="sm" variant="link" className="text-soniox p-0 h-auto">
+          <Button size="sm" variant="link" className="text-blue-600 p-0 h-auto">
             View Full Error
           </Button>
         </DialogTrigger>
@@ -301,14 +301,14 @@ const WordToken = memo(
       titleParts.push(`Confidence: ${part.confidence.toFixed(2)}`);
 
     const textClassName = isFinalStyling
-      ? "text-gray-800 dark:text-gray-200"
-      : "text-gray-500 dark:text-gray-400 italic";
+      ? "text-gray-800 dark:text-gray-200 text-3xl"
+      : "text-gray-500 dark:text-gray-400 italic text-3xl";
 
     const languageTag = displayedLanguage ? (
       <>
         {onNewLine && <br />}
         {addSpacing && <div className="h-3" />}
-        <span className="px-2 mr-0.5 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-400 rounded-full text-xs font-medium">
+        <span className="px-2 mr-0.5 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-400 rounded-full text-sm font-medium">
           {new Intl.DisplayNames(["en"], { type: "language" }).of(
             displayedLanguage
           ) || displayedLanguage}
@@ -334,8 +334,8 @@ const WordToken = memo(
             className={cn(
               textClassName,
               part.translation_status === "translation" &&
-                "text-gray-400 dark:text-gray-500 text-sm italic",
-              "hover:text-soniox rounded-lg"
+                "text-gray-400 dark:text-gray-500 text-3xl italic",
+              "hover:text-blue-600 rounded-lg"
             )}
           >
             {textToRender}

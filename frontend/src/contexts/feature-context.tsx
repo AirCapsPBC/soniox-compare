@@ -10,9 +10,8 @@ import React, {
 import { z } from "zod";
 import {
   ALL_PROVIDERS_LIST,
-  SONIOX_PROVIDER,
   type ProviderName,
-} from "@/lib/provider-features"; // Assuming this is the correct path
+} from "@/lib/provider-features";
 import { snakeCaseToTitle } from "@/lib/utils";
 
 const IGNORED_FEATURES = ["confidence_scores", "timestamps"];
@@ -23,8 +22,9 @@ const featureInfoSchema = z.object({
   comment: z.string().optional(),
 });
 
-const providerFeaturesSchema = z.record(
-  z.enum(ALL_PROVIDERS_LIST),
+// Use z.string() to accept any provider from backend, then filter to only supported ones
+const rawProviderFeaturesSchema = z.record(
+  z.string(),
   z
     .object({
       name: z.string(),
@@ -34,7 +34,7 @@ const providerFeaturesSchema = z.record(
 );
 
 export type FeatureInfo = z.infer<typeof featureInfoSchema>;
-export type ProviderFeatures = z.infer<typeof providerFeaturesSchema>;
+export type ProviderFeatures = Partial<Record<ProviderName, z.infer<typeof rawProviderFeaturesSchema>[string]>>;
 
 interface FeatureContextType {
   providerFeatures: ProviderFeatures | null;
@@ -59,9 +59,7 @@ export const FeatureProvider: React.FC<{ children: ReactNode }> = ({
   const [error, setError] = useState<Error | null>(null);
 
   const availableComparisonProviders = useMemo(() => {
-    return providerFeatures
-      ? ALL_PROVIDERS_LIST.filter((p) => p !== SONIOX_PROVIDER)
-      : [];
+    return providerFeatures ? [...ALL_PROVIDERS_LIST] : [];
   }, [providerFeatures]);
 
   useEffect(() => {
@@ -76,8 +74,15 @@ export const FeatureProvider: React.FC<{ children: ReactNode }> = ({
       })
       .then((data) => {
         try {
-          const validatedData = providerFeaturesSchema.parse(data);
-          setProviderFeatures(validatedData);
+          const rawData = rawProviderFeaturesSchema.parse(data);
+          // Filter to only include supported providers from ALL_PROVIDERS_LIST
+          const filteredData: ProviderFeatures = {};
+          for (const provider of ALL_PROVIDERS_LIST) {
+            if (rawData[provider]) {
+              filteredData[provider] = rawData[provider];
+            }
+          }
+          setProviderFeatures(filteredData);
         } catch (err) {
           console.error(
             "[FeatureContext] Error parsing provider features:",
@@ -115,7 +120,9 @@ export const FeatureProvider: React.FC<{ children: ReactNode }> = ({
   );
 
   const getFeatureSet = useCallback(() => {
-    return Object.keys(getProviderFeatures(SONIOX_PROVIDER));
+    // Get features from the first available provider
+    const firstProvider = ALL_PROVIDERS_LIST[0];
+    return Object.keys(getProviderFeatures(firstProvider));
   }, [getProviderFeatures]);
 
   const getProviderFeaturesTextTable = useCallback(

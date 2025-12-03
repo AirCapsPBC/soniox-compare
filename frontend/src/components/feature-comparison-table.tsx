@@ -9,8 +9,7 @@ import {
 } from "lucide-react";
 import { cn, snakeCaseToTitle } from "@/lib/utils";
 import { useFeatures } from "@/contexts/feature-context";
-import { SONIOX_PROVIDER } from "@/lib/provider-features";
-import { useMemo } from "react";
+import type { ProviderName } from "@/lib/provider-features";
 import MarkdownRenderer from "./markdown-renderer";
 import { ResponsiveTooltip } from "./ui/responsive-tooltip";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
@@ -45,9 +44,7 @@ export const FeatureComparisonTable = () => {
   const { providerFeatures, availableComparisonProviders, getFeatureSet } =
     useFeatures();
 
-  const allProviderNames = useMemo(() => {
-    return [SONIOX_PROVIDER, ...availableComparisonProviders];
-  }, [availableComparisonProviders]);
+  const allProviderNames: ProviderName[] = availableComparisonProviders;
 
   // helper if we need to download the data for the table
   // const handleDownload = () => {

@@ -1,10 +1,9 @@
 import { ComparisonProvider } from "@/contexts/comparison-context";
 import { MainLayout } from "@/components/main-layout";
-import { ControlPanel } from "@/components/sidebar/control-panel";
 import { ProviderGrid } from "@/components/provider-grid";
 import { ModelDataProvider } from "@/contexts/model-data-context";
-import { FeatureComparisonTable } from "@/components/feature-comparison-table";
 import { FeatureProvider, useFeatures } from "@/contexts/feature-context";
+import { Mic } from "lucide-react";
 
 function App() {
   return (
@@ -19,8 +18,11 @@ function AppCore() {
 
   if (isLoading) {
     return (
-      <div className="w-screen h-screen flex items-center justify-center">
-        <img src="/compare/ui/soniox.svg" alt="Soniox Logo" className="w-20" />
+      <div className="w-screen h-screen flex items-center justify-center bg-gray-50">
+        <div className="flex flex-col items-center gap-4">
+          <Mic className="w-16 h-16 text-blue-600 animate-pulse" />
+          <p className="text-gray-600">Loading...</p>
+        </div>
       </div>
     );
   }
@@ -35,9 +37,11 @@ function AppCore() {
 
   if (!providerFeatures) {
     return (
-      <div className="w-screen h-screen flex items-center justify-center">
-        <img src="/compare/ui/soniox.svg" alt="Soniox Logo" className="w-20" />
-        <p>No features data available.</p>
+      <div className="w-screen h-screen flex items-center justify-center bg-gray-50">
+        <div className="flex flex-col items-center gap-4">
+          <Mic className="w-16 h-16 text-blue-600" />
+          <p className="text-gray-600">No features data available.</p>
+        </div>
       </div>
     );
   }
@@ -45,11 +49,7 @@ function AppCore() {
   return (
     <ModelDataProvider>
       <ComparisonProvider>
-        <MainLayout
-          sidebarContent={<ControlPanel />}
-          mainContent={<ProviderGrid />}
-          featureTableContent={<FeatureComparisonTable />}
-        />
+        <MainLayout mainContent={<ProviderGrid />} />
       </ComparisonProvider>
     </ModelDataProvider>
   );

@@ -77,6 +77,7 @@ class ServiceConfig(BaseModel):
     project_id: str = ""
     prompt: str = ""
     recognizer_id: str = ""
+    audio_gain: float = 1.0  # Gain multiplier for audio input (1.0 = no change)
 
 
 class ProviderParams(BaseModel):

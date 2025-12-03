@@ -8,7 +8,6 @@ import {
 
 import {
   ALL_PROVIDERS_LIST,
-  SONIOX_PROVIDER,
   type ProviderName,
 } from "@/lib/provider-features";
 import { useMemo } from "react";
@@ -42,12 +41,8 @@ const defaultSourceTranslationLanguages: string[] = ["en"];
 const defaultTranslationLanguageA = "en";
 const defaultTranslationLanguageB = "es";
 
-const initialComparisonProviders = ALL_PROVIDERS_LIST.filter(
-  (p) => p !== SONIOX_PROVIDER
-);
-const defaultSelectedProviders: ProviderName[] = [
-  ...initialComparisonProviders.slice(0, 2),
-];
+// Default to OpenAI, Deepgram, and Azure
+const defaultSelectedProviders: ProviderName[] = ["openai", "deepgram", "azure"];
 const defaultEnableSpeakerDiarization = true;
 const defaultEnableLanguageIdentification = true;
 const defaultEnableEndpointDetection = false;
@@ -152,7 +147,6 @@ export function useUrlSettings() {
       }
     }
 
-    params.append("providers", "soniox");
     if (settings.selectedProviders && settings.selectedProviders.length > 0) {
       settings.selectedProviders.forEach((p) => params.append("providers", p));
     }

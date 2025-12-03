@@ -1,5 +1,4 @@
 import React from "react";
-import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -10,7 +9,6 @@ import { ActionPanel } from "./action-panel";
 import { TranslationSettings } from "./translation-settings";
 import { useModelData } from "@/contexts/model-data-context";
 import { SearchSelect } from "@/components/ui/search-select";
-import { FaDiscord, FaGithub } from "react-icons/fa";
 import { useFeatures } from "@/contexts/feature-context";
 import type { ProviderName } from "@/lib/provider-features";
 import { ResponsiveTooltip } from "../ui/responsive-tooltip";
@@ -68,7 +66,7 @@ export const ControlPanel: React.FC = () => {
   return (
     <div className="h-full flex flex-col bg-zinc-50">
       <div className="relative flex-1">
-        <div className="flex absolute z-10 top-0 inset-x-0 right-4 justify-between items-center p-4">
+        {/* <div className="flex absolute z-10 top-0 inset-x-0 right-4 justify-between items-center p-4">
           <div className="absolute inset-x-0 top-0 flex flex-col pointer-events-none w-full">
             <div className="bg-zinc-50 h-12 -z-10" />
             <div className="h-8 bg-gradient-to-b from-zinc-50 to-transparent -z-10" />
@@ -78,7 +76,6 @@ export const ControlPanel: React.FC = () => {
           </h2>
           <TooltipProvider>
             <div className="flex -mr-4 text-gray-400 items-center gap-x-1">
-              {/* A github button */}
               <ResponsiveTooltip content={<p>Join Discord</p>}>
                 <a
                   href="https://discord.com/invite/rWfnk9uM5j"
@@ -103,7 +100,7 @@ export const ControlPanel: React.FC = () => {
               </ResponsiveTooltip>
             </div>
           </TooltipProvider>
-        </div>
+        </div> */}
         <div className="absolute inset-0 overflow-y-auto flex flex-col space-y-4 p-4 pt-12 pb-0">
           <div className="w-full space-y-4 pt-6">
             <Label className="text-sm font-semibold text-gray-700 dark:text-gray-300 block mb-2">

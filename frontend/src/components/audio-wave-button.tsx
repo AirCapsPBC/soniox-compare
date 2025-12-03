@@ -175,9 +175,8 @@ export const AudioWaveButton = forwardRef<
     <Button
       className={cn(
         "relative overflow-hidden group transition-colors duration-300",
-        // Apply dark theme styles. The button's bg is now the animation's bg.
-        "bg-soniox text-white",
-        !isPlaying && "hover:bg-gray-800",
+        "bg-blue-600 text-white",
+        !isPlaying && "hover:bg-blue-700",
         isPlaying && "hover:bg-red-500",
         className
       )}
